@@ -31,7 +31,7 @@ class Generator:
         N_spins = args[0]
         Jxx, Jyy, Jzz = (couplings[i: i + (N_spins - 1)] for i in range(0, len(couplings)-N_spins, N_spins-1))
         hx = couplings[-N_spins:]
-        
+
 def density_matr(Jxx, Jyy, Jzz, hx, beta, N_spins, **kwargs):
     """Calculates Gibbs density matrix"""
 
