@@ -20,6 +20,8 @@ from sklearn.metrics import mean_squared_error as mse
 from time import time, perf_counter
 from scipy.optimize import minimize
 from scipy.stats import entropy
+from modules.discriminator import u_mat
+from modules.generator import density_matr
 import copy
 from scipy.optimize import basinhopping
 from sys import getsizeof
@@ -31,52 +33,6 @@ import pickle
 no_checks = {"check_herm": False,
              "check_pcon": False,
              "check_symm": False}
-
-
-def density_matr(N_spins, Jxx, Jyy, Jzz, hx, beta):
-    """Calculates Gibbs density matrix
-
-    Args:
-        N_spins (int): number of spins
-        coupl_matr (np.array): J_ij 
-                    coupling matrix
-        field_vec (np.array): array of
-            transverse magnetic fields
-        beta (float): inverse temperature
-
-    Returns:
-        np.array:
-
-    """
-
-    adj_mat = np.zeros((N_spins, N_spins))
-    tmp_mat = np.zeros((N_spins - 1, N_spins - 1))
-    np.fill_diagonal(tmp_mat, 1)
-    adj_mat[:-1, 1:] = tmp_mat
-    nz_ind = np.argwhere(adj_mat == 1).astype(object)
-
-    basis = spin_basis_1d(N_spins)
-
-    J_xx = np.insert(nz_ind, 0, Jxx, axis=1).tolist()
-    J_yy = np.insert(nz_ind, 0, Jyy, axis=1).tolist()
-    J_zz = np.insert(nz_ind, 0, Jzz, axis=1).tolist()
-    h_x = [[hx[i], i] for i in range(N_spins)]
-
-    static = [["xx", J_xx], ["yy", J_yy], ["zz", J_zz], ["x", h_x]]
-
-    dynamic = []
-
-    # generating hamiltonian
-    H = hamiltonian(static, dynamic, basis=basis,
-                    **no_checks, dtype=np.float64)
-    H = H.toarray()
-    # normalization constant
-    Z = np.trace(sp.linalg.expm(-beta * H))
-    # density matrix
-    rho = sp.linalg.expm(-beta * H) / Z
-
-    return rho
-
 
 def xyz_rot_angles(N_spins):
     """Returns dict with 3**N keys, corresponding to 3^N basis states
@@ -160,23 +116,15 @@ def rot_matr(angles):
         theta = angles[key][0, 0]
         phi = angles[key][0, 1]
 
-        a = np.cos(theta / 2) * np.exp(phi / 2. * 1j)
-        b = np.sin(theta / 2) * np.exp(- phi / 2. * 1j)
-        c = -np.sin(theta / 2) * np.exp(phi / 2. * 1j)
-        d = np.cos(theta / 2) * np.exp(- phi / 2. * 1j)
-
-        U = np.array([[a, b], [c, d]])
+        U = u_mat(theta, phi)
 
         for i in range(it_ranges[0] - 1):
             theta = angles[key][i + 1, 0]
             phi = angles[key][i + 1, 1]
 
-            a = np.cos(theta / 2) * np.exp(phi / 2. * 1j)
-            b = np.sin(theta / 2) * np.exp(- phi / 2. * 1j)
-            c = -np.sin(theta / 2) * np.exp(phi / 2. * 1j)
-            d = np.cos(theta / 2) * np.exp(- phi / 2. * 1j)
+            Utemp = u_mat(theta, phi)
 
-            U = np.kron(U, np.array([[a, b], [c, d]])).astype('complex64')
+            U = np.kron(U, Utemp).astype('complex64')
 
         matr_dict = dict()
 
@@ -466,23 +414,15 @@ def discriminator(angles, rho_t, rho_g, N_m):
     theta = angles[0, 0]
     phi = angles[0, 1]
 
-    a = np.cos(theta / 2) * np.exp(phi / 2. * 1j)
-    b = np.sin(theta / 2) * np.exp(- phi / 2. * 1j)
-    c = -np.sin(theta / 2) * np.exp(phi / 2. * 1j)
-    d = np.cos(theta / 2) * np.exp(- phi / 2. * 1j)
-
-    U = np.array([[a, b], [c, d]])
+    U = u_mat(theta, phi)
 
     for i in range(it_ranges[0] - 1):
         theta = angles[i + 1, 0]
         phi = angles[i + 1, 1]
 
-        a = np.cos(theta / 2) * np.exp(phi / 2. * 1j)
-        b = np.sin(theta / 2) * np.exp(- phi / 2. * 1j)
-        c = -np.sin(theta / 2) * np.exp(phi / 2. * 1j)
-        d = np.cos(theta / 2) * np.exp(- phi / 2. * 1j)
+        U_temp = u_mat(theta, phi)
 
-        U = np.kron(U, np.array([[a, b], [c, d]])).astype('complex64')
+        U = np.kron(U, U_temp).astype('complex64')
 
     U_asmatr = np.asmatrix(U)
     rot_H = U_asmatr.getH()
@@ -530,9 +470,6 @@ def discriminator(angles, rho_t, rho_g, N_m):
 
     distr_t = np.array(un_t) / N_m
     distr_g = np.array(un_g) / N_m
-    print(un_t)
-    print(un_g)
-
     ent = entropy(distr_g, distr_t)
 
-    return ent
+    return ent, distr_t, distr_g
