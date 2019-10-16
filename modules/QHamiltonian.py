@@ -21,7 +21,6 @@ from time import time, perf_counter
 from scipy.optimize import minimize
 from scipy.stats import entropy
 from modules.discriminator import u_mat
-from modules.generator import density_matr
 import copy
 from scipy.optimize import basinhopping
 from sys import getsizeof
@@ -473,3 +472,5 @@ def discriminator(angles, rho_t, rho_g, N_m):
     ent = entropy(distr_g, distr_t)
 
     return ent, distr_t, distr_g
+
+

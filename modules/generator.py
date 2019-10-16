@@ -2,71 +2,94 @@ import numpy as np
 from quspin.operators import hamiltonian
 from quspin.basis import spin_basis_1d
 import scipy as sp
+from modules.discriminator import Discriminator, u_mat, rho_to_distr
+from scipy.stats import entropy
 
 
 
 class Generator:
-    def __init__(self, Jxx, Jyy, Jzz, hx, N_spins, beta=None, **kwargs):
-        """ Couplings: dict with lists of Jxx, Jyy, Jzz, hx. """
+    def __init__(self, couplings, beta=None, **kwargs):
         if beta is None:
             beta = 1
-        self.Jxx = Jxx
-        self.Jyy = Jyy
-        self.Jzz = Jzz
-        self.hx = hx
-        self.N_spins = N_spins
+        self.couplings = couplings
         self.beta = beta
-        self.rho = density_matr(self.Jxx, self.Jyy, self.Jzz, self.hx, self.beta, self.N_spins, **kwargs)
-
-        assert len(self.Jxx) == len(self.Jyy) == len(self.Jzz) == (len(self.hx) -1) == (self.N_spins -1), 'Number of couplings is not consistent'
+        self.rho = self.density_matr(self.couplings, self.beta, **kwargs)
 
     def generate_mat(self):
         return self.rho
 
-    def train(self, new_couplings):
-        return density_matr(self.Nspins, self.beta,  **new_couplings)
+    def train(self):
+        # TODO
+        pass
+
+    @staticmethod
+    def couplings_unpack(couplings):
+        """Returns Jxx, Jyy, Jzz, hx couplings from it concatenated form"""
+        N_spins = (len(couplings) + 3) // 4
+        Jxx, Jyy, Jzz = (couplings[i: i + (N_spins - 1)] for i in range(0, len(couplings) - N_spins, N_spins - 1))
+        hx = couplings[-N_spins:]
+        return Jxx, Jyy, Jzz, hx
 
     @staticmethod
     def loss_function(couplings: list, *args):
-        N_spins = args[0]
-        Jxx, Jyy, Jzz = (couplings[i: i + (N_spins - 1)] for i in range(0, len(couplings)-N_spins, N_spins-1))
-        hx = couplings[-N_spins:]
+        rho_t_z, angles = args
 
-def density_matr(Jxx, Jyy, Jzz, hx, beta, N_spins, **kwargs):
-    """Calculates Gibbs density matrix"""
+        # Generator manipulate rho_g to get closer to rho_t_z
+        rho_g_z = Generator.density_matr(couplings)
+        umat = Discriminator.angles_to_umat(angles)
 
-    if 'no_checks' in kwargs:
-        no_checks = kwargs['no_checks']
-    else:
-        no_checks = {"check_herm": False,
-                     "check_pcon": False,
-                     "check_symm": False}
+        # Get rho in new basis
+        rho_g_new = Discriminator.rotate(rho_g_z, umat)
+        rho_t_new = Discriminator.rotate(rho_t_z, umat)
 
-    adj_mat = np.zeros((N_spins, N_spins))
-    tmp_mat = np.zeros((N_spins - 1, N_spins - 1))
-    np.fill_diagonal(tmp_mat, 1)
-    adj_mat[:-1, 1:] = tmp_mat
-    nz_ind = np.argwhere(adj_mat == 1).astype(object)
+        # Get distribution
+        # (in current version just get diagonal elements)
+        distr_g = np.diag(rho_g_new).real
+        distr_t = np.diag(rho_t_new).real
 
-    basis = spin_basis_1d(N_spins)
+        # Distance between distributions
+        ent = entropy(distr_g, distr_t)
+        return ent
 
-    J_xx = np.insert(nz_ind, 0, Jxx, axis=1).tolist()
-    J_yy = np.insert(nz_ind, 0, Jyy, axis=1).tolist()
-    J_zz = np.insert(nz_ind, 0, Jzz, axis=1).tolist()
-    h_x = [[hx[i], i] for i in range(N_spins)]
 
-    static = [["xx", J_xx], ["yy", J_yy], ["zz", J_zz], ["x", h_x]]
+    @staticmethod
+    def density_matr(couplings, beta=1, **kwargs):
+        """Calculates Gibbs density matrix"""
+        N_spins = (len(couplings) + 3) // 4
+        Jxx, Jyy, Jzz, hx = Generator.couplings_unpack(couplings)
+        if 'no_checks' in kwargs:
+            no_checks = kwargs['no_checks']
+        else:
+            no_checks = {"check_herm": False,
+                         "check_pcon": False,
+                         "check_symm": False}
 
-    dynamic = []
+        adj_mat = np.zeros((N_spins, N_spins))
+        tmp_mat = np.zeros((N_spins - 1, N_spins - 1))
+        np.fill_diagonal(tmp_mat, 1)
+        adj_mat[:-1, 1:] = tmp_mat
+        nz_ind = np.argwhere(adj_mat == 1).astype(object)
 
-    # generating hamiltonian
-    H = hamiltonian(static, dynamic, basis=basis,
-                    **no_checks, dtype=np.float64)
-    H = H.toarray()
-    # normalization constant
-    Z = np.trace(sp.linalg.expm(-beta * H))
-    # density matrix
-    rho = sp.linalg.expm(-beta * H) / Z
+        basis = spin_basis_1d(N_spins)
 
-    return rho
+        J_xx = np.insert(nz_ind, 0, Jxx, axis=1).tolist()
+        J_yy = np.insert(nz_ind, 0, Jyy, axis=1).tolist()
+        J_zz = np.insert(nz_ind, 0, Jzz, axis=1).tolist()
+        # Why x, not z ?!2
+        h_x = [[hx[i], i] for i in range(N_spins)]
+
+        static = [["xx", J_xx], ["yy", J_yy], ["zz", J_zz], ["x", h_x]]
+
+        dynamic = []
+
+        # generating h_xamiltonian
+        H = hamiltonian(static, dynamic, basis=basis,
+                        **no_checks, dtype=np.float64)
+        H = H.toarray()
+        # normalization constant
+        Z = np.trace(sp.linalg.expm(-beta * H))
+        # density matrix
+        rho = sp.linalg.expm(-beta * H) / Z
+
+        return rho
 
