@@ -1,8 +1,10 @@
 import numpy as np
 from modules.matrices import *
 
+
 def trace_distance(d1, d2):
     return np.linalg.norm((d1 - d2), ord=1)
+
 
 def g_loss_func(params, *args):
     """
@@ -31,6 +33,7 @@ def g_loss_func(params, *args):
     # distr_t = np.random.choice([0, 1], size=10000, p=prob_t)
 
     return trace_distance(prob_g, prob_t)
+
 
 def d_loss_func(angles:np.array, *args):
     # Discriminator loss function

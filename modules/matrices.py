@@ -55,6 +55,7 @@ def density_matr(params, beta=1, **kwargs):
 
     return rho
 
+
 def u_mat(theta, phi):
     """ Generates U (rotation matrix) by given angles of Bloch sphere"""
 
