@@ -1,1 +1,1 @@
-[Algoritm_scheme](algorithm_scheme.png)
+![algoritm_scheme](algorithm_scheme.png)
