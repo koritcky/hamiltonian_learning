@@ -8,10 +8,14 @@ from quspin.basis import spin_basis_1d
 
 
 def density_matr(params, beta=1, **kwargs):
-    """Builds Gibbs density matrix based on exchange coeffs and fields"""
+    """Builds Gibbs density matrix based on exchange coeffs and fields
+    params: [[theta1, theta2, ..., thetaN],
+             [phi1, phi2, ..., phiN]]
+             where thetaI,phiI determine field direction on Ith spin
+    """
     # hx, hy, hz, Jxx, Jyy, Jzz = params
-    hx, hy, hz = params
-    N_spins = len(hx)
+    theta, phi = params  # 2 lists: list of N_spins theta and list of N_spins phi, that determine field on each spin
+    N_spins = len(theta)
 
     if 'no_checks' in kwargs:
         no_checks = kwargs['no_checks']
@@ -23,9 +27,9 @@ def density_matr(params, beta=1, **kwargs):
     basis = spin_basis_1d(N_spins)
 
     # make coupling and field types correct
-    hx = [[hx[i], i] for i in range(N_spins)]
-    hy = [[hy[i], i] for i in range(N_spins)]
-    hz = [[hz[i], i] for i in range(N_spins)]
+    hx = [[np.sin(theta[i])*np.cos(phi[i]), i] for i in range(N_spins)]
+    hy = [[np.sin(theta[i])*np.sin(phi[i]), i] for i in range(N_spins)]
+    hz = [[np.cos(theta[i]), i] for i in range(N_spins)]
 
     # Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins)]
     # Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins)]
