@@ -12,13 +12,13 @@ def g_loss_func(params, *args):
     Estimates how far density matrix from generated hamiltonian (params)
     in compatison with given density matrix rho_t_z.
 
-    params: [theta1, theta2, ..., thetaN, phi1, phi2, ..., phiN]
+    params: [theta1, theta2, ..., thetaN, phi1, phi2, ..., phiN, Jxx1, ..., JxxN, ..., Jzz1, ..., JzzN]
              where thetaI,phiI determine field direction on Ith spin
     """
     rho_t_z, angles = args
 
     N_spins = np.shape(angles)[1]
-    params = params.reshape(2, N_spins)
+    params = params.reshape(4, N_spins)
 
 
     # Generator manipulate rho_g to get closer to rho_t_z
@@ -61,12 +61,3 @@ def d_loss_func(angles: np.array, *args):
     return -trace_distance(prob_g, prob_t)
 
 
-def spher_to_cartesian(params_spher):
-    params_cartesian = []
-    for angles in params_spher.T:
-        theta, phi = angles
-        hx = np.sin(theta)*np.cos(phi)
-        hy = np.sin(theta)*np.sin(phi)
-        hz = np.cos(theta)
-        params_cartesian.append([hx, hy, hz])
-    return np.array(params_cartesian).T
