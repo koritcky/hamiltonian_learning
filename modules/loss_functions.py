@@ -15,14 +15,15 @@ def g_loss_func(params, *args):
     params: [theta1, theta2, ..., thetaN, phi1, phi2, ..., phiN, Jxx1, ..., JxxN, ..., Jzz1, ..., JzzN]
              where thetaI,phiI determine field direction on Ith spin
     """
-    rho_t_z, angles = args
+    rho_t_z, angles, beta, ising = args
+    param_num = 2 if ising else 5
 
     N_spins = np.shape(angles)[1]
-    params = params.reshape(4, N_spins)
+    params = params.reshape(param_num, N_spins)
 
 
     # Generator manipulate rho_g to get closer to rho_t_z
-    rho_g_z = density_matr(params)
+    rho_g_z = density_matr(params, beta, ising)
     umat = angles_to_umat(angles)
 
     # Get rho in new basis
