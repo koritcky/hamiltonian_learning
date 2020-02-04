@@ -16,7 +16,7 @@ def g_loss_func(params, *args):
              where thetaI,phiI determine field direction on Ith spin
     """
     rho_t_z, angles, beta, ising = args
-    param_num = 2 if ising else 5
+    param_num = 2 if ising else 4
 
     N_spins = np.shape(angles)[1]
     params = params.reshape(param_num, N_spins)

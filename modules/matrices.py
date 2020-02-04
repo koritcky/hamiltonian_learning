@@ -34,24 +34,21 @@ def density_matr(params, beta=0.3, ising=False, **kwargs):
             ['z', hz],
             ['zz', Jzz]]
     else:
-        theta_h, phi_h, Jxx, Jyy, Jzz = params
-        hx, hy, hz = spher_to_cartesian(params[0:2])
+        hx, hy, hz, Jzz = params
         N_spins = len(hz)
 
         hx = [[hx[i], i] for i in range(N_spins)]
         hy = [[hy[i], i] for i in range(N_spins)]
         hz = [[hz[i], i] for i in range(N_spins)]
 
-        Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins)]
-        Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins)]
+        # Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins)]
+        # Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins)]
         Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins)]
 
         static = [
             ['x', hx],
             ['y', hy],
             ['z', hz],
-            ['xx', Jxx],
-            ['yy', Jyy],
             ['zz', Jzz]]
 
     basis = spin_basis_1d(N_spins)
