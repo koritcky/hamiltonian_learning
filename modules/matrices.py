@@ -1,4 +1,6 @@
 # Here lies function of matrices manipulations
+import warnings
+warnings.filterwarnings("error")
 
 import numpy as np
 import scipy as sp
@@ -7,7 +9,7 @@ from quspin.operators import hamiltonian
 from quspin.basis import spin_basis_1d
 
 
-def density_matr(params, beta=0.3, ising=False, **kwargs):
+def density_matr(h, J, beta, model, **kwargs):
     """Builds Gibbs density matrix based on exchange coeffs and fields
     params: [[hz1, ..., hzN],
              [Jzz1, Jzz2, ..., JzzN]]
@@ -23,33 +25,50 @@ def density_matr(params, beta=0.3, ising=False, **kwargs):
                      "check_pcon": False,
                      "check_symm": False}
 
-    if ising:
-        hz, Jzz = params
+    if model == 'Ising':
+        hz, = h
+        Jzz, = J
         N_spins = len(hz)
 
         hz = [[hz[i], i] for i in range(N_spins)]
-        Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins)]
-
+        Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
         static = [
             ['z', hz],
             ['zz', Jzz]]
-    else:
-        hx, hy, hz, Jzz = params
+    elif model == 'XY':
+        hz, = h
+        Jxx, Jyy = J
+        N_spins = len(hz)
+
+        hz = [[hz[i], i] for i in range(N_spins)]
+        Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins - 1)]
+        Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins - 1)]
+
+        static = [
+            ['z', hz],
+            ['xx', Jxx],
+            ['yy', Jyy]]
+    elif model == 'Full':
+        hx, hy, hz = h
+        Jxx, Jyy, Jzz = J
         N_spins = len(hz)
 
         hx = [[hx[i], i] for i in range(N_spins)]
         hy = [[hy[i], i] for i in range(N_spins)]
         hz = [[hz[i], i] for i in range(N_spins)]
 
-        # Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins)]
-        # Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins)]
-        Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins)]
+        Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
+        Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
+        Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
 
-        static = [
-            ['x', hx],
-            ['y', hy],
-            ['z', hz],
-            ['zz', Jzz]]
+        static = [['x', hx],
+                ['y', hy],
+                ['z', hz],
+                ['xx', Jxx],
+                ['yy', Jyy],
+                ['zz', Jzz]]
+    else:
+        raise Warning("Choose model or use 'Full' for all-interaction model")
 
     basis = spin_basis_1d(N_spins)
     dynamic = []
@@ -62,8 +81,12 @@ def density_matr(params, beta=0.3, ising=False, **kwargs):
     Z = np.trace(sp.linalg.expm(-beta * H))
 
     # density matrix
-    rho = sp.linalg.expm(-beta * H) / Z
-
+    try:
+        rho = sp.linalg.expm(-beta * H) / Z
+    except RuntimeWarning:
+        print(f"Z={Z}")
+        print(f"Static={static}")
+        print(f"H={H}")
     return rho
 
 
