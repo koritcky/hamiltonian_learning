@@ -1,9 +1,9 @@
 import numpy as np
+from modules.measures import *
 from modules.matrices import *
 
 
-def trace_distance(d1, d2):
-    return np.linalg.norm((d1 - d2), ord=1)
+
 
 def generate_params(fields, interactions, N_spins):
     if fields > 3 or interactions > 3:
@@ -49,7 +49,7 @@ def g_loss_func(flat_params, *args):
     # distr_g = np.random.choice([0, 1], size=10000, p=prob_g)
     # distr_t = np.random.choice([0, 1], size=10000, p=prob_t)
 
-    return trace_distance(prob_g, prob_t)
+    return matrix_distance(rho_g_new, rho_t_new, 10 ** 3)
 
 
 def d_loss_func(angles: np.array, *args):
@@ -66,11 +66,5 @@ def d_loss_func(angles: np.array, *args):
     rho_g_new = rotate(rho_g_z, umat)
     rho_t_new = rotate(rho_t_z, umat)
 
-    # Get distribution
-    # (in current version just get diagonal elements)
-    prob_g = np.diag(rho_g_new).real
-    prob_t = np.diag(rho_t_new).real
-
-    return -trace_distance(prob_g, prob_t)
-
+    return -matrix_distance(rho_g_new, rho_t_new, 10 ** 3)
 
