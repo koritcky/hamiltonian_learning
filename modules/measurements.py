@@ -108,13 +108,13 @@ def reduced_matrix_measurements(rho):
 ### This funciton is universal ###
 def distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2):
     """Find the distance between 2 matrices according to singles and correlators measurements"""
-    return sum(sum(abs(singles_1 - singles_2))) + sum(sum(abs(correlators_2 - correlators_1)))
+    return sum(sum((singles_1 - singles_2) ** 2)) + sum(sum((correlators_2 - correlators_1) ** 2))
 #
 # n = 3
 # m = np.random.rand(2 ** 3, 2 ** 3)
 # rho = m + np.conjugate(m.T)
 # rho = rho/np.trace(rho)
-# 
+#
 # singles_1, correlators_1 = reduced_matrix_measurements(rho)
 # singles_2, correlators_2 = sampling_measurements(rho, 10 ** 6)
 # d = distance_by_measurements(singles_1, singles_1, correlators_1, correlators_2)

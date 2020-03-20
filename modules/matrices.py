@@ -9,7 +9,9 @@ from quspin.basis import spin_basis_1d
 import warnings
 warnings.filterwarnings("error")
 
-class Generator:
+import modules.measurements as measurements
+
+class Hamiltonian:
     def __init__(self, n_spins, beta=0.3, **kwargs):
         """
         kwargs consist of fields and couplings:
@@ -19,9 +21,10 @@ class Generator:
         self.beta = beta
         self.__dict__.update(kwargs)
         self.n_spins = n_spins
+        self.density_mat = None
 
 
-    def density_mat(self):
+    def get_density_mat(self):
         """Builds Gibbs density matrix based on exchange coeffs and fields
         params: x,y,z - fields
         xx, yy, zz - couplings
@@ -67,7 +70,21 @@ class Generator:
             print(f"H={H}")
 
         self.density_mat = rho
-        return rho
+        return self.density_mat
+
+    def rotation(self, angles):
+        """Rotates state
+        params: [[theta1, phi1], [theta2, phi2],  ..., [thetaN, phiN]]"""
+
+        umat = angles_to_umat(angles)
+        density_mat = rotate(self.density_mat, umat)
+
+        return density_mat
+
+    def measure(self, angles):
+        density_mat = self.rotation(angles)
+        singles, correlators = measurements.reduced_matrix_measurements(density_mat)
+        return singles, correlators
 
 
 def u_mat(theta, phi):
@@ -87,7 +104,6 @@ def angles_to_umat(angles):
     """Calculates rotation matrices
     angles: np.array, columns are different spins, rows are theta and phi
     """
-    angles = np.array(angles).T
     # First matrix
     theta, phi = angles[0]
     U = u_mat(theta, phi)
@@ -118,6 +134,7 @@ def spher_to_cartesian(params_spher):
         hy = np.sin(theta_h)*np.sin(phi_h)
         hz = np.cos(theta_h)
         params_cartesian.append([hx, hy, hz])
+
     return np.array(params_cartesian).T
 
 # g = Generator(3, 0.3, x=[0.5, 1, 0.7], z = [0.3, 1, 1])

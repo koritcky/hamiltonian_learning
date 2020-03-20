@@ -1,6 +1,6 @@
 import numpy as np
-from modules.measures import *
-from modules.matrices import Generator
+from modules.measurements import *
+from modules.matrices import Hamiltonian
 
 
 
@@ -36,7 +36,7 @@ def g_loss_func(flat_params, *args):
 
 
     # Generator manipulate rho_g to get closer to rho_t_z
-    rho_g_z = Generator.density_mat(h, J, beta, model)
+    rho_g_z = Generator.get_density_mat(h, J, beta, model)
     umat = Generator.angles_to_umat(angles)
 
     # Get rho in new basis
