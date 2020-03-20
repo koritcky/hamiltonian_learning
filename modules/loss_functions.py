@@ -1,6 +1,6 @@
 import numpy as np
 from modules.measures import *
-from modules.matrices import *
+from modules.matrices import Generator
 
 
 
@@ -11,6 +11,7 @@ def generate_params(fields, interactions, N_spins):
     h = np.random.randn(fields, N_spins)
     J = np.random.randn(interactions, N_spins - 1)
     return h, J
+
 
 def flat_to_params(flat_params, fields, interactions, N_spins):
     h_flat, J_flat = np.split(flat_params, [fields * N_spins])
@@ -35,8 +36,8 @@ def g_loss_func(flat_params, *args):
 
 
     # Generator manipulate rho_g to get closer to rho_t_z
-    rho_g_z = density_matr(h, J, beta, model)
-    umat = angles_to_umat(angles)
+    rho_g_z = Generator.density_matr(h, J, beta, model)
+    umat = Generator.angles_to_umat(angles)
 
     # Get rho in new basis
     rho_g_new = rotate(rho_g_z, umat)

@@ -1,6 +1,4 @@
 # Here lies function of matrices manipulations
-import warnings
-warnings.filterwarnings("error")
 
 import numpy as np
 import scipy as sp
@@ -8,86 +6,69 @@ import scipy as sp
 from quspin.operators import hamiltonian
 from quspin.basis import spin_basis_1d
 
+import warnings
+warnings.filterwarnings("error")
 
-def density_matr(h, J, beta, model, **kwargs):
-    """Builds Gibbs density matrix based on exchange coeffs and fields
-    params: [[hz1, ..., hzN],
-             [Jzz1, Jzz2, ..., JzzN]]
-             where hz - field,
-                   Jzz - interaction integral
+class Generator:
+    def __init__(self, beta, n_spins, **kwargs):
+        """
+        kwargs consist of fields and couplings:
+        x, y, z,
+        xx, yy, zz
+        """
+        self.beta = beta
+        self.__dict__.update(kwargs)
+        self.n_spins = n_spins
 
-    """
 
-    if 'no_checks' in kwargs:
-        no_checks = kwargs['no_checks']
-    else:
+    def density_matr(self):
+        """Builds Gibbs density matrix based on exchange coeffs and fields
+        params: x,y,z - fields
+        xx, yy, zz - couplings
+
+        """
+
         no_checks = {"check_herm": False,
                      "check_pcon": False,
                      "check_symm": False}
 
-    if model == 'Ising':
-        hz, = h
-        Jzz, = J
-        N_spins = len(hz)
 
-        hz = [[hz[i], i] for i in range(N_spins)]
-        Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
-        static = [
-            ['z', hz],
-            ['zz', Jzz]]
-    elif model == 'XY':
-        hz, = h
-        Jxx, Jyy = J
-        N_spins = len(hz)
+        static = []
 
-        hz = [[hz[i], i] for i in range(N_spins)]
-        Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins - 1)]
-        Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins - 1)]
+        for field in ['x', 'y', 'z']:
+            if field in self.__dict__.keys():
+                fields_list = self.__dict__[field]
+                fields_list = [[fields_list[i], i] for i in range(self.n_spins)]
 
-        static = [
-            ['z', hz],
-            ['xx', Jxx],
-            ['yy', Jyy]]
-    elif model == 'Full':
-        hx, hy, hz = h
-        Jxx, Jyy, Jzz = J
-        N_spins = len(hz)
+                static.append([field, fields_list])
 
-        hx = [[hx[i], i] for i in range(N_spins)]
-        hy = [[hy[i], i] for i in range(N_spins)]
-        hz = [[hz[i], i] for i in range(N_spins)]
+        for coupling in ['xx', 'yy', 'zz']:
+            if coupling in self.__dict__.keys():
+                couplings_list = self.__dict__[coupling]
+                couplings_list = [[couplings_list[i], i, (i + 1) % self.n_spins] for i in range(self.n_spins - 1)]
+                static.append([coupling, couplings_list])
 
-        Jxx = [[Jxx[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
-        Jyy = [[Jyy[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
-        Jzz = [[Jzz[i], i, (i + 1) % N_spins] for i in range(N_spins-1)]
 
-        static = [['x', hx],
-                ['y', hy],
-                ['z', hz],
-                ['xx', Jxx],
-                ['yy', Jyy],
-                ['zz', Jzz]]
-    else:
-        raise Warning("Choose model or use 'Full' for all-interaction model")
+        basis = spin_basis_1d(self.n_spins)
+        dynamic = []
 
-    basis = spin_basis_1d(N_spins)
-    dynamic = []
+        # generating h_xamiltonian
+        H = hamiltonian(static, dynamic, basis=basis, **no_checks)
+        H = H.toarray()
 
-    # generating h_xamiltonian
-    H = hamiltonian(static, dynamic, basis=basis, **no_checks)
-    H = H.toarray()
+        # normalization constant
+        Z = np.trace(sp.linalg.expm(-self.beta * H))
 
-    # normalization constant
-    Z = np.trace(sp.linalg.expm(-beta * H))
+        # density matrix
+        try:
+            rho = sp.linalg.expm(-self.beta * H) / Z
+        except RuntimeWarning:
+            print(f"Z={Z}")
+            print(f"Static={static}")
+            print(f"H={H}")
 
-    # density matrix
-    try:
-        rho = sp.linalg.expm(-beta * H) / Z
-    except RuntimeWarning:
-        print(f"Z={Z}")
-        print(f"Static={static}")
-        print(f"H={H}")
-    return rho
+        self.density_matr = rho
+        return rho
 
 
 def u_mat(theta, phi):
@@ -139,3 +120,8 @@ def spher_to_cartesian(params_spher):
         hz = np.cos(theta_h)
         params_cartesian.append([hx, hy, hz])
     return np.array(params_cartesian).T
+
+g = Generator(1, 3, x=[0.5, -0.3, 0.7], z = [0.2, 0.6, -0.8], xx = [1, 0.5])
+
+g.density_matr()
+print(np.shape(g.density_matr))
