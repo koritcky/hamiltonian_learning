@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings("error")
 
 class Generator:
-    def __init__(self, beta, n_spins, **kwargs):
+    def __init__(self, n_spins, beta=0.3, **kwargs):
         """
         kwargs consist of fields and couplings:
         x, y, z,
@@ -21,7 +21,7 @@ class Generator:
         self.n_spins = n_spins
 
 
-    def density_matr(self):
+    def density_mat(self):
         """Builds Gibbs density matrix based on exchange coeffs and fields
         params: x,y,z - fields
         xx, yy, zz - couplings
@@ -48,7 +48,6 @@ class Generator:
                 couplings_list = [[couplings_list[i], i, (i + 1) % self.n_spins] for i in range(self.n_spins - 1)]
                 static.append([coupling, couplings_list])
 
-
         basis = spin_basis_1d(self.n_spins)
         dynamic = []
 
@@ -67,7 +66,7 @@ class Generator:
             print(f"Static={static}")
             print(f"H={H}")
 
-        self.density_matr = rho
+        self.density_mat = rho
         return rho
 
 
@@ -121,7 +120,7 @@ def spher_to_cartesian(params_spher):
         params_cartesian.append([hx, hy, hz])
     return np.array(params_cartesian).T
 
-g = Generator(1, 3, x=[0.5, -0.3, 0.7], z = [0.2, 0.6, -0.8], xx = [1, 0.5])
-
-g.density_matr()
-print(np.shape(g.density_matr))
+# g = Generator(3, 0.3, x=[0.5, 1, 0.7], z = [0.3, 1, 1])
+#
+# g.density_mat()
+# print(np.trace(g.density_mat@g.density_mat))
