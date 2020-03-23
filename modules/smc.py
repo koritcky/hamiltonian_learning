@@ -1,6 +1,5 @@
 """This is Sequential Monte Carlo"""
 import numpy as np
-from scipy.stats import norm
 from modules.matrices import Hamiltonian
 import modules.measurements as measurements
 import itertools

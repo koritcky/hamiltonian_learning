@@ -5,11 +5,11 @@ import scipy as sp
 
 from quspin.operators import hamiltonian
 from quspin.basis import spin_basis_1d
+from modules.measurements import ReducedMatrixMeasurement
 
 import warnings
 warnings.filterwarnings("error")
 
-import modules.measurements as measurements
 
 class Hamiltonian:
     def __init__(self, n_spins, beta=0.3, **kwargs):
@@ -24,7 +24,7 @@ class Hamiltonian:
         self.density_mat = None
 
 
-    def get_density_mat(self):
+    def set_density_mat(self):
         """Builds Gibbs density matrix based on exchange coeffs and fields
         params: x,y,z - fields
         xx, yy, zz - couplings
@@ -73,7 +73,7 @@ class Hamiltonian:
         return self.density_mat
 
     def rotation(self, angles):
-        """Rotates state
+        """Rotates basis
         params: [[theta1, phi1], [theta2, phi2],  ..., [thetaN, phiN]]"""
 
         umat = angles_to_umat(angles)
@@ -83,7 +83,7 @@ class Hamiltonian:
 
     def measure(self, angles):
         density_mat = self.rotation(angles)
-        singles, correlators = measurements.reduced_matrix_measurements(density_mat)
+        singles, correlators = ReducedMatrixMeasurement.reduced_matrix_measurements(density_mat)
         return singles, correlators
 
 
@@ -137,7 +137,14 @@ def spher_to_cartesian(params_spher):
 
     return np.array(params_cartesian).T
 
-# g = Generator(3, 0.3, x=[0.5, 1, 0.7], z = [0.3, 1, 1])
+# n_spins = 3
+# g = Hamiltonian(n_spins, 0.3, x=[0.5, 1, 0.7], z = [0.3, 1, 1])
 #
-# g.density_mat()
-# print(np.trace(g.density_mat@g.density_mat))
+# g.set_density_mat()
+# orig_angles = np.random.rand(n_spins, 2)
+# g.measure(orig_angles)
+
+
+# m = Hamiltonian(1)
+# m.density_mat = np.array([[0.5, -0.5*1j], [0.5*1j, 0.5]])
+# print(m.measure(np.array([[np.pi/2, np.pi/2]])))
