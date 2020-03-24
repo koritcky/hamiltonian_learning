@@ -1,6 +1,6 @@
 import numpy as np
 from modules.measurements import *
-from modules.matrices import Hamiltonian
+from modules.hamiltonian import Hamiltonian
 
 
 

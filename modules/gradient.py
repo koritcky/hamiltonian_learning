@@ -1,5 +1,6 @@
 import numpy as np
-from modules.smc import Particle
+from modules.smc import Hamiltonian
+from modules.hamiltonian import Hamiltonian
 
 
 def conjugated_angles(original_angles):
@@ -29,7 +30,7 @@ def conjugated_angles(original_angles):
     return ZZ, XZ, YZ, ZX, ZY
 
 
-def measurements_for_gradient(particle: Particle, original_angles):
+def measurements_for_gradient(hamiltonian: Hamiltonian, original_angles):
     # TODO: make correlators
     """
 
@@ -39,23 +40,23 @@ def measurements_for_gradient(particle: Particle, original_angles):
         - Conjugated (C) with theta + pi/2, phi. Label it as "\"
     We perform 3 types of measurement:
         - All original (orig). With labels it looks like : "//////" for 6 spins
-        - Even spins in conjugated basis and odd in original (even): "\/\/\/" (spins are numerated from 0)
-        - Even spins in original basis and odd in conjugated (odd) : "/\/\/\"
+        - Even spins in conjugated basis and odd in original (even): (spins are numerated from 0)
+        - Even spins in original basis and odd in conjugated (odd) :
     Then we take singles and correlators from this measurements. We name it like, for example:
         - "singles_C" for singles in conjugated basis: \
         - "correlators_OC" for correlators for first spin in original basis and second in conjugated: /\
     """
-    n_spins = particle.n_spins
+    n_spins = hamiltonian.n_spins
 
     # Generate angles for measurements
     (ZZ, XZ, YZ, ZX, ZY) = conjugated_angles(original_angles)
 
     # Perform measurements
-    raw_singles_ZZ, raw_correlators_ZZ = particle.measure(ZZ)
-    raw_singles_XZ, raw_correlators_XZ = particle.measure(XZ)
-    raw_singles_YZ, raw_correlators_YZ = particle.measure(YZ)
-    raw_singles_ZX, raw_correlators_ZX = particle.measure(ZX)
-    raw_singles_ZY, raw_correlators_ZY = particle.measure(ZY)
+    raw_singles_ZZ, raw_correlators_ZZ = hamiltonian.measure(ZZ)
+    raw_singles_XZ, raw_correlators_XZ = hamiltonian.measure(XZ)
+    raw_singles_YZ, raw_correlators_YZ = hamiltonian.measure(YZ)
+    raw_singles_ZX, raw_correlators_ZX = hamiltonian.measure(ZX)
+    raw_singles_ZY, raw_correlators_ZY = hamiltonian.measure(ZY)
 
     # In Z basis we immediately got answers, so just for consistency:
     singles_Z = raw_singles_ZZ
@@ -84,7 +85,7 @@ def measurements_for_gradient(particle: Particle, original_angles):
     return singles_Z, singles_X, singles_Y
 
 
-def single_probability_gradient(coefs, angles):
+def single_gradient(coefs, angles):
     """
     By given coefficients [A, B, C] and angles [theta, phi] returns corresponding single derivative
         A = 1/2 - rho_00
@@ -102,14 +103,14 @@ def single_probability_gradient(coefs, angles):
     return d_angles
 
 
-def get_ABC(particle:Particle, angles):
+def get_ABC(hamiltonian: Hamiltonian, angles):
 
     theta = angles[:, 0]  # we need only thetas
 
-    singles_Z, singles_X, singles_Y = measurements_for_gradient(particle, angles)
+    singles_Z, singles_X, singles_Y = measurements_for_gradient(hamiltonian, angles)
     p_Z, p_X, p_Y = singles_Z[:, 0], singles_X[:, 0], singles_Y[:, 0]  # Probabilities of getting 0 in each basis
 
-
+    # Auxiliary vectors
     V1 = p_Z - ((np.sin(theta / 2)) ** 2)
     V2 = p_X - (1 / 2) * (np.sin(theta) + 1)
 
@@ -117,18 +118,46 @@ def get_ABC(particle:Particle, angles):
     B = np.sin(theta) * V1 + np.cos(theta) * V2
     C = (1 / 2) - p_Y
 
-    return A, B, C
+    return np.array([A, B, C])
 
-n_spins = 5
-x = np.random.rand(n_spins) * 2 - 1
-y = np.random.rand(n_spins) * 2 - 1
-xx = np.random.rand(n_spins - 1) * 2 - 1
-particle = Particle(weight=0.5, n_spins=5, beta=0.3, x=x, y=y, xx=xx)
 
-particle.set_density_mat()
+def gradient_step(hamiltonian:Hamiltonian, orig_angles, lr=0.05):
+    """Perform one step of gradient descent"""
 
-orig_angles = np.random.rand(n_spins, 2)
+    # Coefficients for derivatives
+    A, B, C = get_ABC(hamiltonian, orig_angles)
+    coefs = np.array([A, B, C])
 
-A, B, C = get_ABC(particle, orig_angles)
+    # Derivatives of angles
+    d_angles = single_gradient(coefs, orig_angles)
 
-print(single_probability_gradient([A, B, C], orig_angles))
+    # One step of gradient descent with fixed learning rate lr
+    new_anlges = orig_angles - lr * d_angles
+
+    return new_anlges
+
+
+def gradient_descent(hamiltonian: Hamiltonian, orig_angles, lr=0.05, num_iterations=10):
+    angles = orig_angles
+
+    # Make num_iterations of gradient descent steps
+    for i in range(num_iterations):
+        angles = gradient_step(hamiltonian, angles, lr)
+
+    return angles
+
+
+# n_spins = 5
+# x = np.random.rand(n_spins) * 2 - 1
+# y = np.random.rand(n_spins) * 2 - 1
+# xx = np.random.rand(n_spins - 1) * 2 - 1
+# hamiltonian = Hamiltonian(n_spins=5, beta=0.3, x=x, y=y, xx=xx)
+#
+# hamiltonian.set_density_mat()
+#
+# orig_angles = np.random.rand(n_spins, 2)
+#
+# A, B, C = get_ABC(hamiltonian, orig_angles)
+#
+# print(gradient_descent(hamiltonian, orig_angles))
+

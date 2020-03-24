@@ -11,6 +11,7 @@ import warnings
 warnings.filterwarnings("error")
 
 
+
 class Hamiltonian:
     def __init__(self, n_spins, beta=0.3, **kwargs):
         """

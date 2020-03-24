@@ -1,8 +1,7 @@
 """This is Sequential Monte Carlo"""
 import numpy as np
-from modules.matrices import Hamiltonian
+from modules.hamiltonian import Hamiltonian
 import modules.measurements as measurements
-import itertools
 
 
 class Particle(Hamiltonian):
@@ -14,62 +13,91 @@ class Particle(Hamiltonian):
         self.weight = weight
 
     def weight_update(self, angles, singles_t, correlators_t):
+        """Update weight of particle according to it's distance to target hamiltonian"""
         singles_g, correlators_g = self.measure(angles)
         distance = measurements.distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t)
         weight = np.exp(- distance ** 2 / 2) / np.sqrt(2 * np.pi)
         self.set_weight(weight)
 
-    @staticmethod
-    def initial_generation(n_particles, n_spins, beta, fields=None, correlators=None):
+class Cloud:
+    """Essentially, pull of particles"""
+
+    def __init__(self, n_particles, n_spins, beta=0.3, fields=None, correlators=None):
         """Creates an initial list of 'particles' -- hamiltonians with random coefficients and equal weights"""
-        particles_list = []
+
+        self.particles_list = []
+        self.n_particles = n_particles
+        self.n_spins = n_spins
+        if fields:
+            self.fields = fields
+        if correlators:
+            self.correlators = correlators
+
         weight = 1 / n_particles
-        for i in range(n_particles):
+        self.total_weight = 1
+        for i in range(self.n_particles):
             particle = Particle(weight=weight, n_spins=n_spins, beta=beta)
 
-            # This line adds coefficients to hamiltonian
-            if fields:
-                particle.__dict__.update({field: np.random.rand(n_spins) * 2 - 1 for field in fields})
-            if correlators:
-                particle.__dict__.update({corr: np.random.rand(n_spins - 1) * 2 - 1 for corr in correlators})
-            particle.density_mat()
-            particles_list.append(particle)
+            # This line adds random coefficients to hamiltonian
+            if hasattr(self, 'fields'):
+                particle.__dict__.update({field: np.random.rand(self.n_spins) * 2 - 1 for field in self.fields})
+            if hasattr(self, 'correlators'):
+                particle.__dict__.update({corr: np.random.rand(self.n_spins - 1) * 2 - 1 for corr in self.correlators})
 
-        return np.array(particles_list)
+            particle.set_density_mat()
+            self.particles_list.append(particle)
 
-    @staticmethod
-    def list_weight_update(particles_list, angles, singles_t, correlators_t):
-        total_weight = 0
-        for particle in particles_list:
+    def weight_normalization(self):
+        """Normalizes weight of all particles such that the sum = 1"""
+        for i in range(len(self.particles_list)):
+            self.particles_list[i].weight /= self.total_weight
+
+        self.total_weight = 1
+
+        return self.particles_list
+
+    def list_weight_update(self, angles, singles_t, correlators_t):
+        """Update weight of particle according to it's distance to target hamiltonian"""
+        self.total_weight = 0
+
+        for particle in self.particles_list:
             particle.weight_update(angles, singles_t, correlators_t)
-            total_weight += particle.weight
-        particles_list = particles_list/total_weight
+            self.total_weight += particle.weight
 
-        return particles_list
+        # normalize weights
+        self.weight_normalization()
 
-    @staticmethod
-    def resampling_wheel(particles_list, weights):
-        n_particles = len(particles_list)
+        return self.particles_list
+
+    def resampling_wheel(self):
+        # sry, not my function
+
         max_weight = 0
-        for particle in particles_list:
+        for particle in self.particles_list:
             if particle.weight > max_weight:
                 max_weight = particle.weight
 
         new_particles_list = []
-        index = np.random.randint(n_particles)
+        index = np.random.randint(self.n_particles)
         beta = 0
         total_weight = 0
-        for _ in range(n_particles):
+        for _ in range(self.n_particles):
             beta += np.random.uniform(0, 2 * max_weight)
-            while particles_list[index].weight < beta:
-                beta -= particles_list[index].weight
-                index += 1
-            new_particles_list.append(particles_list[index])
-            total_weight += particles_list[index]
-        new_particles_list = np.array(new_particles_list) / total_weight
-        return new_particles_list
+            while self.particles_list[index].weight < beta:
+                beta -= self.particles_list[index].weight
+                index = (index + 1) % self.n_particles
+            new_particles_list.append(self.particles_list[index])
+            total_weight += self.particles_list[index].weight
 
-    
+        self.particles_list = new_particles_list
+        self.weight_normalization()
+        return self.particles_list
+
+    # @staticmethod
+    # def average_particle(particles_list, fields=None, correlators=None):
+    #     particle = Hamiltonian()
+    #     for particle in particles_list:
+    #         print(particle)
 
 # particles_list = Particle.initial_generation(n_particles=5, n_spins=3, beta=0.3, fields=['x', 'z'])
 # print(len(particles_list))
