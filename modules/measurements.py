@@ -129,7 +129,8 @@ class SamplingMeasurement:
 def distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2):
     """Find the distance between 2 matrices according to singles and correlators measurements"""
     return sum(sum((singles_1 - singles_2) ** 2)) + sum(sum((correlators_2 - correlators_1) ** 2))
-#
+
+
 # n = 3
 # m = np.random.rand(2 ** 3, 2 ** 3)
 # rho = m + np.conjugate(m.T)

@@ -1,4 +1,3 @@
-import numpy as np
 from random import seed
 
 from modules.smc import Particle, Cloud
@@ -34,11 +33,15 @@ g_cloud = Cloud(n_particles, n_spins, beta, fields=["x", "y"])
 
 # Update weight according to particle's distance to target hamiltonian
 g_cloud.list_weight_update(angles, singles_t, correlators_t)
-print(g_cloud.particles_list[0].weight)
 
 # Make a recycling wheel to get rid of far particles
 g_cloud.resampling_wheel()
-print(g_cloud.particles_list[0].weight)
+
+# weighted sum of all particles -- our current best result
+g = g_cloud.weighted_sum()
+
+
+
 
 
 

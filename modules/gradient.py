@@ -122,6 +122,7 @@ def get_ABC(hamiltonian: Hamiltonian, angles):
 
 
 def gradient_step(hamiltonian:Hamiltonian, orig_angles, lr=0.05):
+    #TODO: Это хуевый градиент. Там должно еще домнажаться на коэффициенты, браться разница с целевым и пр пр
     """Perform one step of gradient descent"""
 
     # Coefficients for derivatives
@@ -146,7 +147,8 @@ def gradient_descent(hamiltonian: Hamiltonian, orig_angles, lr=0.05, num_iterati
 
     return angles
 
-
+def foo(x):
+    return x ** 3
 # n_spins = 5
 # x = np.random.rand(n_spins) * 2 - 1
 # y = np.random.rand(n_spins) * 2 - 1
