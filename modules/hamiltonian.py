@@ -46,11 +46,11 @@ class Hamiltonian:
 
                 static.append([field, fields_list])
 
-        for coupling in ['xx', 'yy', 'zz']:
-            if coupling in self.__dict__.keys():
-                couplings_list = self.__dict__[coupling]
-                couplings_list = [[couplings_list[i], i, (i + 1) % self.n_spins] for i in range(self.n_spins - 1)]
-                static.append([coupling, couplings_list])
+        # for coupling in ['xx', 'yy', 'zz']:
+        #     if coupling in self.__dict__.keys():
+        #         couplings_list = self.__dict__[coupling]
+        #         couplings_list = [[couplings_list[i], i, (i + 1) % self.n_spins] for i in range(self.n_spins - 1)]
+        #         static.append([coupling, couplings_list])
 
         basis = spin_basis_1d(self.n_spins)
         dynamic = []
@@ -84,12 +84,24 @@ class Hamiltonian:
 
     def measure(self, angles):
         density_mat = self.rotation(angles)
-        singles, correlators = ReducedMatrixMeasurement.reduced_matrix_measurements(density_mat)
-        return singles, correlators
+        singles = ReducedMatrixMeasurement.reduced_matrix_measurements(density_mat)
+        return singles
+
+
+def hamiltonian_difference(hamiltonian_1: Hamiltonian, hamiltonian_2: Hamiltonian):
+
+    parameters = ['x', 'y', 'z']
+    mse = 0
+
+    for parameter in parameters:
+        if hasattr(hamiltonian_1, parameter):
+            mse += ((hamiltonian_1.__dict__[parameter] - hamiltonian_2.__dict__[parameter]) ** 2).mean(axis=None)
+
+    return mse
 
 
 def u_mat(theta, phi):
-    """ Generates U (rotation matrix) by given angles of Bloch sphere"""
+    """ Generates U (rotation matrix of size (2, 2)) by given angles of Bloch sphere"""
 
     u11 = np.cos(theta / 2)
     u12 = np.sin(theta / 2) * np.exp(- phi * 1j)
@@ -102,7 +114,7 @@ def u_mat(theta, phi):
 
 
 def angles_to_umat(angles):
-    """Calculates rotation matrices
+    """Calculates rotation matrix of the whole system
     angles: np.array, columns are different spins, rows are theta and phi
     """
     # First matrix
@@ -123,7 +135,9 @@ def rotate(rho: np.array, u_mat):
     try:
         return u_mat @ rho @ u_mat.T.conj()
     except ValueError:
-        print('Didnt rotate matrix')
+        print(rho.shape)
+        print(u_mat.shape)
+        raise Warning('Didnt rotate matrix')
         return rho
 
 

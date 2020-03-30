@@ -1,154 +1,168 @@
 import numpy as np
-from modules.smc import Hamiltonian
 from modules.hamiltonian import Hamiltonian
 
 
-def conjugated_angles(original_angles):
-    """
-    Here we create new series of angles for gradient measurements. We use here the notation of bloch sphere basis.
-    2 letters notation is exhaustively because basis choice is repeated for the following spines.
-    For example "YZ" means "YZYZYZ...". Bloch notation means:
-        - Z: theta=theta, phi=phi
-        - X: theta=theta+pi/2, phi=phi
-        - Y: thetha=theta+pi/2, phi=phi+pi/2
+class ProbabilityDerivative:
+    """Perform measurements and calculates derivatives of probabilites for hamiltonian"""
+    def __init__(self, hamiltonian: Hamiltonian, original_angles):
+        self.hamiltonian = hamiltonian
+        self.original_angles = original_angles
+        self.n_spins = self.hamiltonian.n_spins
 
-    """
-    n_spins = len(original_angles)
+    def conjugated_angles(self):
+        """
+        Here we create new series of angles for gradient measurements. We use here the notation of bloch sphere basis.
+        2 letters notation is exhaustively because basis choice is repeated for the following spines.
+        For example "YZ" means "YZYZYZ...". Bloch notation means:
+            - Z: theta=theta, phi=phi
+            - X: theta=theta+pi/2, phi=phi
+            - Y: thetha=theta+pi/2, phi=phi+pi/2
 
-    ZZ = np.copy(original_angles)
-    XZ = np.copy(original_angles)
-    YZ = np.copy(original_angles)
-    ZX = np.copy(original_angles)
-    ZY = np.copy(original_angles)
-    for i in range(n_spins):
-        if i % 2 == 0:
-            XZ[i, 0] += np.pi / 2
-            YZ[i] += np.pi / 2  # Both angles are increases by pi/2
-        else:
-            ZX[i, 0] += np.pi / 2
-            ZY[i] += np.pi / 2  # Both angles are increases by pi/2
-    return ZZ, XZ, YZ, ZX, ZY
+        """
+        original_angles = self.original_angles
 
+        ZZ = np.copy(original_angles)
+        XZ = np.copy(original_angles)
+        YZ = np.copy(original_angles)
+        ZX = np.copy(original_angles)
+        ZY = np.copy(original_angles)
+        for i in range(self.n_spins):
+            if i % 2 == 0:
+                XZ[i, 0] += np.pi / 2
+                YZ[i] += np.pi / 2  # Both angles are increases by pi/2
+            else:
+                ZX[i, 0] += np.pi / 2
+                ZY[i] += np.pi / 2  # Both angles are increases by pi/2
+        return ZZ, XZ, YZ, ZX, ZY
 
-def measurements_for_gradient(hamiltonian: Hamiltonian, original_angles):
-    # TODO: make correlators
-    """
+    def measurements_for_gradient(self):
+        # TODO: make correlators
+        """
+        It's a key function of our work, where measurements are performed.
+        There are 2 types of basis choices:
+            - Original (O) with theta, phi from our primary basis choice. Label it as "/"
+            - Conjugated (C) with theta + pi/2, phi. Label it as "\"
+        We perform 3 types of measurement:
+            - All original (orig). With labels it looks like : "//////" for 6 spins
+            - Even spins in conjugated basis and odd in original (even): (spins are numerated from 0)
+            - Even spins in original basis and odd in conjugated (odd) :
+        Then we take singles and correlators from this measurements. We name it like, for example:
+            - "singles_C" for singles in conjugated basis: \
+            - "correlators_OC" for correlators for first spin in original basis and second in conjugated: /\
+        """
+        n_spins = self.n_spins
+        hamiltonian = self.hamiltonian
+        # Generate angles for measurements
+        (ZZ, XZ, YZ, ZX, ZY) = self.conjugated_angles()
 
-    It's a key function of our work, where measurements are performed.
-    There are 2 types of basis choices:
-        - Original (O) with theta, phi from our primary basis choice. Label it as "/"
-        - Conjugated (C) with theta + pi/2, phi. Label it as "\"
-    We perform 3 types of measurement:
-        - All original (orig). With labels it looks like : "//////" for 6 spins
-        - Even spins in conjugated basis and odd in original (even): (spins are numerated from 0)
-        - Even spins in original basis and odd in conjugated (odd) :
-    Then we take singles and correlators from this measurements. We name it like, for example:
-        - "singles_C" for singles in conjugated basis: \
-        - "correlators_OC" for correlators for first spin in original basis and second in conjugated: /\
-    """
-    n_spins = hamiltonian.n_spins
+        # Perform measurements
+        # raw_singles_ZZ, raw_correlators_ZZ = hamiltonian.measure(ZZ)
+        # raw_singles_XZ, raw_correlators_XZ = hamiltonian.measure(XZ)
+        # raw_singles_YZ, raw_correlators_YZ = hamiltonian.measure(YZ)
+        # raw_singles_ZX, raw_correlators_ZX = hamiltonian.measure(ZX)
+        # raw_singles_ZY, raw_correlators_ZY = hamiltonian.measure(ZY)
+        raw_singles_ZZ = hamiltonian.measure(ZZ)
+        raw_singles_XZ = hamiltonian.measure(XZ)
+        raw_singles_YZ = hamiltonian.measure(YZ)
+        raw_singles_ZX = hamiltonian.measure(ZX)
+        raw_singles_ZY = hamiltonian.measure(ZY)
 
-    # Generate angles for measurements
-    (ZZ, XZ, YZ, ZX, ZY) = conjugated_angles(original_angles)
+        # In Z basis we immediately got answers, so just for consistency:
+        singles_Z = raw_singles_ZZ
+        # correlators_ZZ = raw_correlators_ZZ
 
-    # Perform measurements
-    raw_singles_ZZ, raw_correlators_ZZ = hamiltonian.measure(ZZ)
-    raw_singles_XZ, raw_correlators_XZ = hamiltonian.measure(XZ)
-    raw_singles_YZ, raw_correlators_YZ = hamiltonian.measure(YZ)
-    raw_singles_ZX, raw_correlators_ZX = hamiltonian.measure(ZX)
-    raw_singles_ZY, raw_correlators_ZY = hamiltonian.measure(ZY)
+        # Create blanks for other singles and correlators
+        singles_X = np.zeros((n_spins, 2))
+        singles_Y = np.zeros((n_spins, 2))
+        # correlators_XZ = np.zeros((n_spins - 1, 4))
+        # correlators_YZ = np.zeros((n_spins - 1, 4))
 
-    # In Z basis we immediately got answers, so just for consistency:
-    singles_Z = raw_singles_ZZ
-    correlators_ZZ = raw_correlators_ZZ
+        for i in range(n_spins):
+            if i % 2 == 0:
+                singles_X[i] = raw_singles_XZ[i]
+                singles_Y[i] = raw_singles_YZ[i]
+                # if i + 1 < n_spins:
+                #     correlators_XZ[i] = raw_correlators_XZ[i]
+                #     correlators_YZ[i] = raw_correlators_YZ[i]
+            else:
+                singles_X[i] = raw_singles_ZX[i]
+                singles_Y[i] = raw_singles_ZY[i]
+                # if i + 1 < n_spins:
+                #     correlators_XZ[i] = raw_correlators_ZX[i]
+                #     correlators_YZ[i] = raw_correlators_ZY[i]
 
-    # Create blanks for other singles and correlators
-    singles_X = np.zeros((n_spins, 2))
-    singles_Y = np.zeros((n_spins, 2))
-    correlators_XZ = np.zeros((n_spins - 1, 4))
-    correlators_YZ = np.zeros((n_spins - 1, 4))
+        self.singles_Z = singles_Z
+        self.singles_X = singles_X
+        self.singles_Y = singles_Y
 
-    for i in range(n_spins):
-        if i % 2 == 0:
-            singles_X[i] = raw_singles_XZ[i]
-            singles_Y[i] = raw_singles_YZ[i]
-            if i + 1 < n_spins:
-                correlators_XZ[i] = raw_correlators_XZ[i]
-                correlators_YZ[i] = raw_correlators_YZ[i]
-        else:
-            singles_X[i] = raw_singles_ZX[i]
-            singles_Y[i] = raw_singles_ZY[i]
-            if i + 1 < n_spins:
-                correlators_XZ[i] = raw_correlators_ZX[i]
-                correlators_YZ[i] = raw_correlators_ZY[i]
+    def get_ABC(self):
 
-    return singles_Z, singles_X, singles_Y
+        theta = self.original_angles[:, 0]  # we need only thetas
 
+        self.measurements_for_gradient()
 
-def single_gradient(coefs, angles):
-    """
-    By given coefficients [A, B, C] and angles [theta, phi] returns corresponding single derivative
-        A = 1/2 - rho_00
-        B = Re(rho_01 * e^{i*phi}
-        C = Im(rho_01 * e^{i*phi}
-    """
-    A, B, C = coefs
-    theta = angles[:, 0] # we need only thetas
+        # Probabilities of getting 0 in each basis
+        p_Z, p_X, p_Y = self.singles_Z[:, 0], self.singles_X[:, 0], self.singles_Y[:, 0]
 
-    d_theta = A * np.cos(theta) + B * np.sin(theta)
-    d_phi = - C * np.sin(theta)
+        # Auxiliary vectors
+        V1 = p_Z - ((np.sin(theta / 2)) ** 2) - (1 / 2) * np.cos(theta)
+        V2 = p_X - (1 / 2) * (np.sin(theta) + 1) + (1 / 2) * np.sin(theta)
 
-    d_angles = np.array([d_theta, d_phi]).T
+        A = - np.cos(theta) * V1 + np.sin(theta) * V2
+        B = np.sin(theta) * V1 + np.cos(theta) * V2
+        C = (1 / 2) - p_Y
 
-    return d_angles
+        self.coefs = np.array([A, B, C])
+        return self.coefs
 
+    def d_prob(self):
+        """
+        By given coefficients [A, B, C] and angles [theta, phi] returns corresponding single derivative
+            A = 1/2 - rho_00
+            B = Re(rho_01 * e^{i*phi}
+            C = Im(rho_01 * e^{i*phi}
+        """
+        A, B, C = self.get_ABC()
+        theta = self.original_angles[:, 0]  # we need only thetas
 
-def get_ABC(hamiltonian: Hamiltonian, angles):
+        # Actually, this is derivatives of probabilities by d_theta and d_phi
+        d_theta = A * np.sin(theta) + B * np.cos(theta)  # \frac{d_prob}{d_theta}
+        d_phi = - C * np.sin(theta)  # \frac{d_prob}{d_phi}
 
-    theta = angles[:, 0]  # we need only thetas
+        d_prob = np.array([d_theta, d_phi]).T
+        self.d_prob = d_prob
 
-    singles_Z, singles_X, singles_Y = measurements_for_gradient(hamiltonian, angles)
-    p_Z, p_X, p_Y = singles_Z[:, 0], singles_X[:, 0], singles_Y[:, 0]  # Probabilities of getting 0 in each basis
-
-    # Auxiliary vectors
-    V1 = p_Z - ((np.sin(theta / 2)) ** 2)
-    V2 = p_X - (1 / 2) * (np.sin(theta) + 1)
-
-    A = np.cos(theta) * V1 - np.sin(theta) * V2
-    B = np.sin(theta) * V1 + np.cos(theta) * V2
-    C = (1 / 2) - p_Y
-
-    return np.array([A, B, C])
-
-
-def gradient_step(hamiltonian:Hamiltonian, orig_angles, lr=0.05):
-    #TODO: Это хуевый градиент. Там должно еще домнажаться на коэффициенты, браться разница с целевым и пр пр
-    """Perform one step of gradient descent"""
-
-    # Coefficients for derivatives
-    A, B, C = get_ABC(hamiltonian, orig_angles)
-    coefs = np.array([A, B, C])
-
-    # Derivatives of angles
-    d_angles = single_gradient(coefs, orig_angles)
-
-    # One step of gradient descent with fixed learning rate lr
-    new_anlges = orig_angles - lr * d_angles
-
-    return new_anlges
+        return self.d_prob
 
 
-def gradient_descent(hamiltonian: Hamiltonian, orig_angles, lr=0.05, num_iterations=10):
-    angles = orig_angles
+class Gradient:
+    def __init__(self, hamiltonian_t: Hamiltonian, hamiltonian_g, original_angles):
+        self.hamiltonian_t = hamiltonian_t
+        self.hamiltonian_g = hamiltonian_g
+        self.original_angles = original_angles
 
-    # Make num_iterations of gradient descent steps
-    for i in range(num_iterations):
-        angles = gradient_step(hamiltonian, angles, lr)
+        self.prob_der_t = ProbabilityDerivative(hamiltonian_t, original_angles)
+        self.prob_der_g = ProbabilityDerivative(hamiltonian_g, original_angles)
+        self.d_prob_t = self.prob_der_t.d_prob()
+        self.d_prob_g = self.prob_der_g.d_prob()
 
-    return angles
+    def gradient(self):
+        """calculates gradient vector"""
+        d_angles = 2 * (self.prob_der_g.singles_Z - self.prob_der_t.singles_Z) * (self.d_prob_g - self.d_prob_t)
+        self.d_angles = d_angles
 
-def foo(x):
-    return x ** 3
+        return d_angles
+
+    def gradient_descent(self, lr=0.01, num_iterations=10):
+        """Perform gradient descent"""
+
+        for i in range(num_iterations):
+            self.original_angles += lr * self.gradient()
+
+        return self.original_angles
+
+
+
 # n_spins = 5
 # x = np.random.rand(n_spins) * 2 - 1
 # y = np.random.rand(n_spins) * 2 - 1
@@ -162,4 +176,3 @@ def foo(x):
 # A, B, C = get_ABC(hamiltonian, orig_angles)
 #
 # print(gradient_descent(hamiltonian, orig_angles))
-

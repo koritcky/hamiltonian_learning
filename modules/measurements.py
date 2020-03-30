@@ -69,15 +69,15 @@ class ReducedMatrixMeasurement:
         n_spins = int(math.log2(dim))
 
         singles = np.zeros((n_spins, 2))  # single spins
-        correlators = np.zeros((n_spins - 1, 4))  # correlators distribution
+        # correlators = np.zeros((n_spins - 1, 4))  # correlators distribution
         for i in range(n_spins):
             single_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i)
             singles[i] = np.diag(single_rho).real
-            if i + 1 < n_spins:
-                correlator_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i+1)
-                correlators[i] = np.diag(correlator_rho).real
+            # if i + 1 < n_spins:
+            #     correlator_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i+1)
+            #     correlators[i] = np.diag(correlator_rho).real
 
-        return singles, correlators
+        return singles
 
 
 class SamplingMeasurement:
@@ -126,9 +126,11 @@ class SamplingMeasurement:
 
 
 ### This funciton is universal ###
-def distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2):
+def distance_by_measurements(singles_1, singles_2):
     """Find the distance between 2 matrices according to singles and correlators measurements"""
-    return sum(sum((singles_1 - singles_2) ** 2)) + sum(sum((correlators_2 - correlators_1) ** 2))
+    p0_1 = singles_1[:, 0]
+    p0_2 = singles_2[:, 0]
+    return ((p0_1 - p0_2) ** 2).mean()
 
 
 # n = 3

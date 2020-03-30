@@ -2,6 +2,7 @@
 import numpy as np
 from modules.hamiltonian import Hamiltonian
 import modules.measurements as measurements
+import copy
 
 
 class Particle(Hamiltonian):
@@ -12,17 +13,23 @@ class Particle(Hamiltonian):
     def set_weight(self, weight):
         self.weight = weight
 
-    def weight_update(self, angles, singles_t, correlators_t):
+    def scale_weight(self, scalar):
+        # to be sure
+        self.set_weight(self.weight * scalar)
+
+    def weight_update(self, angles, singles_t):
         """Update weight of particle according to it's distance to target hamiltonian"""
-        singles_g, correlators_g = self.measure(angles)
-        distance = measurements.distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t)
-        weight = np.exp(- distance ** 2 / 2) / np.sqrt(2 * np.pi)
+        sigma = 0.01
+        singles_g = self.measure(angles)
+        distance = measurements.distance_by_measurements(singles_g, singles_t)
+        weight = np.exp(- ((distance / sigma) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sigma)
         self.set_weight(weight)
+
 
 class Cloud:
     """Essentially, pull of particles"""
 
-    def __init__(self, n_particles, n_spins, beta=0.3, fields=None, correlators=None):
+    def __init__(self, n_particles, n_spins, beta=0.3, fields=None, couplings=None):
         """Creates an initial list of 'particles' -- hamiltonians with random coefficients and equal weights"""
 
         self.particles_list = []
@@ -31,42 +38,49 @@ class Cloud:
         self.beta = beta
         if fields:
             self.fields = fields
-        if correlators:
-            self.correlators = correlators
+        self.weights_list = np.array([1 / n_particles for i in range(n_particles)])
+        self.total_weight = sum(self.weights_list)
+        # if couplings:
+        #     self.couplings = couplings
 
         weight = 1 / n_particles
-        self.total_weight = 1
         for i in range(self.n_particles):
             particle = Particle(weight=weight, n_spins=n_spins, beta=beta)
 
             # This line adds random coefficients to hamiltonian
             if hasattr(self, 'fields'):
-                particle.__dict__.update({field: np.random.rand(self.n_spins) * 2 - 1 for field in self.fields})
-            if hasattr(self, 'correlators'):
-                particle.__dict__.update({corr: np.random.rand(self.n_spins - 1) * 2 - 1 for corr in self.correlators})
+                # particle.__dict__.update({field: np.random.randint(2, size=self.n_spins) * 2 - 1 for field in self.fields})  # Either +1 or -1
+                particle.__dict__.update({field: np.random.rand(n_spins) * 2 - 1 for field in
+                                          self.fields})
+            # if hasattr(self, 'couplings'):
+            #     particle.__dict__.update({coupling: np.random.rand(self.n_spins - 1) * 2 - 1 for coupling in self.couplings})
 
             particle.set_density_mat()
             self.particles_list.append(particle)
 
+    def set_weights_list(self):
+        weights = []
+        for particle in self.particles_list:
+            weights.append(particle.weight)
+        self.weights_list = np.array(weights)
+        return self.weights_list
+
     def weight_normalization(self):
-        """Normalizes weight of all particles such that the sum = 1"""
-        for i in range(len(self.particles_list)):
-            self.particles_list[i].weight /= self.total_weight
+        """Normalizes weight of all particles such that the sum of all weights = 1"""
+        self.total_weight = sum(self.set_weights_list())
+        for i in range(self.n_particles):
+            self.particles_list[i].scale_weight(1 / self.total_weight)
+        self.set_weights_list()
 
-        self.total_weight = 1
-
-
-    def list_weight_update(self, angles, singles_t, correlators_t):
+    def list_weight_update(self, angles, singles_t, correlators_t=None):
         """Update weight of particle according to it's distance to target hamiltonian"""
         self.total_weight = 0
 
         for particle in self.particles_list:
-            particle.weight_update(angles, singles_t, correlators_t)
-            self.total_weight += particle.weight
+            particle.weight_update(angles, singles_t)
 
         # normalize weights
         self.weight_normalization()
-
 
     def resampling_wheel(self):
         # sry, not my function
@@ -79,17 +93,17 @@ class Cloud:
         new_particles_list = []
         index = np.random.randint(self.n_particles)
         beta = 0
-        total_weight = 0
 
         for _ in range(self.n_particles):
             beta += np.random.uniform(0, 2 * max_weight)
             while self.particles_list[index].weight < beta:
                 beta -= self.particles_list[index].weight
                 index = (index + 1) % self.n_particles
-            new_particles_list.append(self.particles_list[index])
-            total_weight += self.particles_list[index].weight
 
-        self.particles_list = new_particles_list
+            new_particle = copy.deepcopy(self.particles_list[index])  # It's required to create a copy. Probably not the best variant to use "deepcopy"
+            new_particles_list.append(new_particle)
+
+        self.particles_list = np.array(new_particles_list)
         self.weight_normalization()
 
     def weighted_sum(self):
@@ -104,13 +118,13 @@ class Cloud:
 
                 resulting_particle.__dict__.update({field: f})
 
-        if hasattr(self, 'correlators'):
-            for correlator in self.correlators:
-                c = np.zeros(self.n_spins - 1)
-                for particle in self.particles_list:
-                    c += particle.__dict__[correlator] * particle.weight
-
-                resulting_particle.__dict__.update({correlator: c})
+        # if hasattr(self, 'couplings'):
+        #     for coupling in self.couplings:
+        #         c = np.zeros(self.n_spins - 1)
+        #         for particle in self.particles_list:
+        #             c += particle.__dict__[coupling] * particle.weight
+        #
+        #         resulting_particle.__dict__.update({coupling: c})
 
         resulting_particle.set_density_mat()
         self.resulting_particle = resulting_particle
