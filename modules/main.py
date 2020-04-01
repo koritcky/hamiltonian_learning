@@ -11,7 +11,7 @@ from modules.measurements import *
 
 def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
     # Some initial parameters
-    n_spins = 1
+    n_spins = 3
     beta = 0.3
 
     # Create initial random basis angles
@@ -23,10 +23,10 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
     angles = np.array([theta, phi]).T
 
     # Create target hamiltonian
-    # x_t = np.random.rand(n_spins) * 2 - 1
-    # z_t = np.random.rand(n_spins) * 2 - 1
-    z_t = [-1]
-    # x_t = [0]
+    x_t = np.random.rand(n_spins) * 2 - 1
+    z_t = np.random.rand(n_spins) * 2 - 1
+    # z_t = [-1, 0.3, 0.8]
+    # # x_t = [0]
 
     hamiltonian_t = Hamiltonian(n_spins, beta, z=z_t)
     hamiltonian_t.set_density_mat()
@@ -62,7 +62,10 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
         # Make a gradient descent to determine new angles
         grad = Gradient(hamiltonian_t, hamiltonian_g, angles)
         angles = grad.gradient_descent(lr=lr, num_iterations=gradient_iterations)
-
+    print(singles_t)
+    print(singles_g)
 
 if __name__ == '__main__':
-    main_cycle(n_cycles=50, n_particles=500, lr=0.01, gradient_iterations=3000)
+    main_cycle(n_cycles=300, n_particles=500, lr=0.1, gradient_iterations=300)
+
+

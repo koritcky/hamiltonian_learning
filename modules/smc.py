@@ -19,10 +19,11 @@ class Particle(Hamiltonian):
 
     def weight_update(self, angles, singles_t):
         """Update weight of particle according to it's distance to target hamiltonian"""
-        sigma = 0.01
+        sigma = 10 ** (-4)
         singles_g = self.measure(angles)
         distance = measurements.distance_by_measurements(singles_g, singles_t)
         weight = np.exp(- ((distance / sigma) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sigma)
+        # weight = 1/distance
         self.set_weight(weight)
 
 

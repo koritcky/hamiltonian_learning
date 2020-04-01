@@ -36,6 +36,7 @@ class ProbabilityDerivative:
                 ZX[i, 0] += np.pi / 2  # theta
                 ZY[i, 0] = np.pi / 2  # theta
                 ZY[i, 1] += np.pi / 2  # phi
+
         return ZZ, XZ, YZ, ZX, ZY
 
     def measurements_for_gradient(self):
@@ -130,7 +131,7 @@ class ProbabilityDerivative:
 
         # Actually, this is derivatives of probabilities by d_theta and d_phi
         d_theta = A * np.sin(theta) + B * np.cos(theta)  # \frac{d_prob}{d_theta}
-        d_phi = - C * np.sin(theta)  # \frac{d_prob}{d_phi}
+        d_phi = C * np.sin(theta)  # \frac{d_prob}{d_phi}
 
         d_prob = np.array([d_theta, d_phi]).T
         self.d_prob = d_prob
@@ -158,15 +159,12 @@ class Gradient:
 
     def gradient_descent(self, lr=0.01, num_iterations=10):
         """Perform gradient descent"""
-
         for i in range(num_iterations):
             self.original_angles += lr * self.gradient()
 
         return self.original_angles
 
 
-def foo(x):
-    return x ** 5
 # n_spins = 5
 # x = np.random.rand(n_spins) * 2 - 1
 # y = np.random.rand(n_spins) * 2 - 1
