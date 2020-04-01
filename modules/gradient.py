@@ -4,6 +4,7 @@ from modules.hamiltonian import Hamiltonian
 
 class ProbabilityDerivative:
     """Perform measurements and calculates derivatives of probabilites for hamiltonian"""
+
     def __init__(self, hamiltonian: Hamiltonian, original_angles):
         self.hamiltonian = hamiltonian
         self.original_angles = original_angles
@@ -28,11 +29,13 @@ class ProbabilityDerivative:
         ZY = np.copy(original_angles)
         for i in range(self.n_spins):
             if i % 2 == 0:
-                XZ[i, 0] += np.pi / 2
-                YZ[i] += np.pi / 2  # Both angles are increases by pi/2
+                XZ[i, 0] += np.pi / 2  # theta
+                YZ[i, 0] = np.pi / 2  # theta
+                YZ[i, 1] += np.pi / 2  # phi
             else:
-                ZX[i, 0] += np.pi / 2
-                ZY[i] += np.pi / 2  # Both angles are increases by pi/2
+                ZX[i, 0] += np.pi / 2  # theta
+                ZY[i, 0] = np.pi / 2  # theta
+                ZY[i, 1] += np.pi / 2  # phi
         return ZZ, XZ, YZ, ZX, ZY
 
     def measurements_for_gradient(self):
@@ -105,8 +108,8 @@ class ProbabilityDerivative:
         p_Z, p_X, p_Y = self.singles_Z[:, 0], self.singles_X[:, 0], self.singles_Y[:, 0]
 
         # Auxiliary vectors
-        V1 = p_Z - ((np.sin(theta / 2)) ** 2) - (1 / 2) * np.cos(theta)
-        V2 = p_X - (1 / 2) * (np.sin(theta) + 1) + (1 / 2) * np.sin(theta)
+        V1 = p_Z - (1 / 2)
+        V2 = p_X - (1 / 2)
 
         A = - np.cos(theta) * V1 + np.sin(theta) * V2
         B = np.sin(theta) * V1 + np.cos(theta) * V2
@@ -162,7 +165,8 @@ class Gradient:
         return self.original_angles
 
 
-
+def foo(x):
+    return x ** 5
 # n_spins = 5
 # x = np.random.rand(n_spins) * 2 - 1
 # y = np.random.rand(n_spins) * 2 - 1
