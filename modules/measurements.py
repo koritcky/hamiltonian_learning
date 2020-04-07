@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from random import seed
 
 
 class ReducedMatrixMeasurement:
@@ -69,18 +70,20 @@ class ReducedMatrixMeasurement:
         n_spins = int(math.log2(dim))
 
         singles = np.zeros((n_spins, 2))  # single spins
-        # correlators = np.zeros((n_spins - 1, 4))  # correlators distribution
+        correlators = np.zeros((n_spins - 1, 4))  # correlators distribution
         for i in range(n_spins):
-            single_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i)
-            singles[i] = np.diag(single_rho).real
-            # if i + 1 < n_spins:
-            #     correlator_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i+1)
-            #     correlators[i] = np.diag(correlator_rho).real
+            single_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i)  # Namely, reduced matrix 2x2
+            singles[i] = np.diag(single_rho).real  # list [p(0), p(1)] for i-th spin
 
-        return singles
+            if i != (n_spins - 1):
+                correlator_rho = ReducedMatrixMeasurement.reduced_matrix(density_mat, i, i+1)  # Reduced matrix 4x4
+                correlators[i] = np.diag(correlator_rho).real  #list [p(00), p(01), p(10), p(11)]
+
+        return singles, correlators
 
 
 class SamplingMeasurement:
+    """Measurement by actually sampling from probability distribution by given density matrix"""
     @staticmethod
     def sampling_measurements(rho, n_measurements):
         """
@@ -105,7 +108,7 @@ class SamplingMeasurement:
             prob = prob/sum(prob)
             samples = np.random.choice(dim, n_measurements, p=prob)
 
-        # Convert it into bitstrings corresponding to each outocme
+        # Convert it into bitstrings corresponding to each outcome
         bitstrings = np.zeros((n_measurements, n_spins))
         for i, sample in enumerate(samples):
             bitstrings[i] = np.array([int(i) for i in bin(sample)[2:].zfill(n_spins)])
@@ -126,20 +129,21 @@ class SamplingMeasurement:
 
 
 ### This funciton is universal ###
-def distance_by_measurements(singles_1, singles_2):
+def distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2):
     """Find the distance between 2 matrices according to singles and correlators measurements"""
-    p0_1 = singles_1[:, 0]
-    p0_2 = singles_2[:, 0]
-    return ((p0_1 - p0_2) ** 2).mean()
+
+    return ((singles_1 - singles_2) ** 2).mean() + ((correlators_1 - correlators_2) ** 2).mean()
 
 
-# n = 3
-# m = np.random.rand(2 ** 3, 2 ** 3)
-# rho = m + np.conjugate(m.T)
-# rho = rho/np.trace(rho)
-#
-# singles_1, correlators_1 = reduced_matrix_measurements(rho)
-# singles_2, correlators_2 = sampling_measurements(rho, 10 ** 6)
-# d = distance_by_measurements(singles_1, singles_1, correlators_1, correlators_2)
-# print(d)
+if __name__ == "__main__":
+    seed(42)
+    np.random.seed(42)
+    n = 3
+    m = np.random.rand(2 ** 3, 2 ** 3)
+    rho = m + np.conjugate(m.T)
+    rho = rho/np.trace(rho)
 
+    singles_1, correlators_1 = ReducedMatrixMeasurement.reduced_matrix_measurements(rho)
+    singles_2, correlators_2 = SamplingMeasurement.sampling_measurements(rho, 10 ** 2)
+
+    print(distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2))

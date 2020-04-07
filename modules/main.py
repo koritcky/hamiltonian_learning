@@ -5,8 +5,8 @@ from modules.gradient import ProbabilityDerivative, Gradient
 from modules.hamiltonian import *
 from modules.measurements import *
 
-# np.random.seed(43)
-# seed(43)
+np.random.seed(43)
+seed(43)
 
 
 def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
@@ -25,23 +25,23 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
     # Create target hamiltonian
     x_t = np.random.rand(n_spins) * 2 - 1
     z_t = np.random.rand(n_spins) * 2 - 1
-    # z_t = [-1, 0.3, 0.8]
-    # # x_t = [0]
+    zz_t = np.random.rand(n_spins - 1) * 2 - 1
 
-    hamiltonian_t = Hamiltonian(n_spins, beta, z=z_t)
+
+
+    hamiltonian_t = Hamiltonian(n_spins, beta, z=z_t, x=x_t, zz = zz_t)
     hamiltonian_t.set_density_mat()
-    print('Target density matrix')
-    print(hamiltonian_t.density_mat)
+    # print('Target density matrix')
+    # print(hamiltonian_t.density_mat)
 
     # Create an initial pull of random hamiltonians
     # (we call it "particle" according to Sequential Monte Carlo terminology)
-    g_cloud = Cloud(n_particles, n_spins, beta, fields=["z"])
+    g_cloud = Cloud(n_particles, n_spins, beta, fields=["z", 'x'], couplings=['zz'])
     for i in range(n_cycles):
         # Measure target hamiltonian
-        singles_t = hamiltonian_t.measure(angles)
-
+        singles_t, correlators_t = hamiltonian_t.measure(angles)
         # Update weight according to particle's distance to target hamiltonian
-        g_cloud.list_weight_update(angles, singles_t)
+        g_cloud.list_weight_update(angles, singles_t, correlators_t)
 
         # Make a recycling wheel to get rid of far particles
         g_cloud.resampling_wheel()
@@ -52,9 +52,9 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
         mse = hamiltonian_difference(hamiltonian_t, hamiltonian_g)
         print(f"iteration {i}")
         print(f"mse {mse}")
-        print(f"hamiltonian_g.z {hamiltonian_g.z}")
-        singles_g = hamiltonian_g.measure(angles)
-        print(f"distance {distance_by_measurements(singles_g, singles_t)}")
+        # print(f"hamiltonian_g.z {hamiltonian_g.z}")
+        singles_g, correlators_g = hamiltonian_g.measure(angles)
+        print(f"distance {distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t)}")
         print(f"theta {angles[0, 0] / np.pi}")
         print(f"phi {angles[0, 1] / np.pi}")
         print('')
@@ -66,6 +66,6 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
     print(singles_g)
 
 if __name__ == '__main__':
-    main_cycle(n_cycles=300, n_particles=500, lr=0.1, gradient_iterations=300)
+    main_cycle(n_cycles=300, n_particles=500, lr=0.01, gradient_iterations=100)
 
 

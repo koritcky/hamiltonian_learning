@@ -46,11 +46,11 @@ class Hamiltonian:
 
                 static.append([field, fields_list])
 
-        # for coupling in ['xx', 'yy', 'zz']:
-        #     if coupling in self.__dict__.keys():
-        #         couplings_list = self.__dict__[coupling]
-        #         couplings_list = [[couplings_list[i], i, (i + 1) % self.n_spins] for i in range(self.n_spins - 1)]
-        #         static.append([coupling, couplings_list])
+        for coupling in ['xx', 'yy', 'zz']:
+            if coupling in self.__dict__.keys():
+                couplings_list = self.__dict__[coupling]
+                couplings_list = [[couplings_list[i], i, (i + 1) % self.n_spins] for i in range(self.n_spins - 1)]
+                static.append([coupling, couplings_list])
 
         basis = spin_basis_1d(self.n_spins)
         dynamic = []
@@ -84,13 +84,13 @@ class Hamiltonian:
 
     def measure(self, angles):
         density_mat = self.rotation(angles)
-        singles = ReducedMatrixMeasurement.reduced_matrix_measurements(density_mat)
-        return singles
+        singles, correlators = ReducedMatrixMeasurement.reduced_matrix_measurements(density_mat)
+        return singles, correlators
 
 
 def hamiltonian_difference(hamiltonian_1: Hamiltonian, hamiltonian_2: Hamiltonian):
 
-    parameters = ['x', 'y', 'z']
+    parameters = ['x', 'y', 'z', 'xx', 'yy', 'zz']
     mse = 0
 
     for parameter in parameters:
@@ -141,6 +141,7 @@ def rotate(rho: np.array, u_mat):
         return rho
 
 
+## Unused function
 def spher_to_cartesian(params_spher):
     """Transform spherical angles to cartesian components"""
     params_cartesian = []

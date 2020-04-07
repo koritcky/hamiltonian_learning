@@ -17,11 +17,11 @@ class Particle(Hamiltonian):
         # to be sure
         self.set_weight(self.weight * scalar)
 
-    def weight_update(self, angles, singles_t):
+    def weight_update(self, angles, singles_t, correlators_t):
         """Update weight of particle according to it's distance to target hamiltonian"""
-        sigma = 10 ** (-4)
-        singles_g = self.measure(angles)
-        distance = measurements.distance_by_measurements(singles_g, singles_t)
+        sigma = 10 ** (-4)  # ?? this parameter must be adjusted and justified
+        singles_g, correlators_g = self.measure(angles)
+        distance = measurements.distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t)
         weight = np.exp(- ((distance / sigma) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sigma)
         # weight = 1/distance
         self.set_weight(weight)
@@ -37,12 +37,14 @@ class Cloud:
         self.n_particles = n_particles
         self.n_spins = n_spins
         self.beta = beta
+
         if fields:
             self.fields = fields
+        if couplings:
+            self.couplings = couplings
+
         self.weights_list = np.array([1 / n_particles for i in range(n_particles)])
         self.total_weight = sum(self.weights_list)
-        # if couplings:
-        #     self.couplings = couplings
 
         weight = 1 / n_particles
         for i in range(self.n_particles):
@@ -53,8 +55,8 @@ class Cloud:
                 # particle.__dict__.update({field: np.random.randint(2, size=self.n_spins) * 2 - 1 for field in self.fields})  # Either +1 or -1
                 particle.__dict__.update({field: np.random.rand(n_spins) * 2 - 1 for field in
                                           self.fields})
-            # if hasattr(self, 'couplings'):
-            #     particle.__dict__.update({coupling: np.random.rand(self.n_spins - 1) * 2 - 1 for coupling in self.couplings})
+            if hasattr(self, 'couplings'):
+                particle.__dict__.update({coupling: np.random.rand(self.n_spins - 1) * 2 - 1 for coupling in self.couplings})
 
             particle.set_density_mat()
             self.particles_list.append(particle)
@@ -78,7 +80,7 @@ class Cloud:
         self.total_weight = 0
 
         for particle in self.particles_list:
-            particle.weight_update(angles, singles_t)
+            particle.weight_update(angles, singles_t, correlators_t)
 
         # normalize weights
         self.weight_normalization()
@@ -119,13 +121,13 @@ class Cloud:
 
                 resulting_particle.__dict__.update({field: f})
 
-        # if hasattr(self, 'couplings'):
-        #     for coupling in self.couplings:
-        #         c = np.zeros(self.n_spins - 1)
-        #         for particle in self.particles_list:
-        #             c += particle.__dict__[coupling] * particle.weight
-        #
-        #         resulting_particle.__dict__.update({coupling: c})
+        if hasattr(self, 'couplings'):
+            for coupling in self.couplings:
+                c = np.zeros(self.n_spins - 1)
+                for particle in self.particles_list:
+                    c += particle.__dict__[coupling] * particle.weight
+
+                resulting_particle.__dict__.update({coupling: c})
 
         resulting_particle.set_density_mat()
         self.resulting_particle = resulting_particle
