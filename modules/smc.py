@@ -17,12 +17,13 @@ class Particle(Hamiltonian):
         # to be sure
         self.set_weight(self.weight * scalar)
 
-    def weight_update(self, angles, singles_t, correlators_t):
-        """Update weight of particle according to it's distance to target hamiltonian"""
-        sigma = 10 ** (-4)  # ?? this parameter must be adjusted and justified
-        singles_g, correlators_g = self.measure(angles)
-        distance = measurements.distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t)
-        weight = np.exp(- ((distance / sigma) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sigma)
+    def weight_update(self, mean, sd):
+        """Update weight of particle according to it's distance to target hamiltonian
+        mean is distance
+        sd is its standard deviation
+        """
+         # ?? this parameter must be adjusted and justified
+        weight = np.exp(- ((mean / sd) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sd)
         # weight = 1/distance
         self.set_weight(weight)
 
@@ -78,9 +79,17 @@ class Cloud:
     def list_weight_update(self, angles, singles_t, correlators_t=None):
         """Update weight of particle according to it's distance to target hamiltonian"""
         self.total_weight = 0
+        mean = []
 
+        # find means and sd
         for particle in self.particles_list:
-            particle.weight_update(angles, singles_t, correlators_t)
+            singles_g, correlators_g = particle.measure(angles)
+            mean.append(measurements.distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t))
+        sd = np.sqrt(1 / (self.n_particles - 1) * np.sum(np.array(mean) ** 2))
+
+        print(sd)
+        for i in range(len(self.particles_list)):
+            self.particles_list[i].weight = np.exp(- ((mean[i] / sd) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sd)
 
         # normalize weights
         self.weight_normalization()

@@ -5,6 +5,7 @@ from modules.gradient import ProbabilityDerivative, Gradient
 from modules.hamiltonian import *
 from modules.measurements import *
 
+import matplotlib.pyplot as plt
 np.random.seed(43)
 seed(43)
 
@@ -23,20 +24,22 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
     angles = np.array([theta, phi]).T
 
     # Create target hamiltonian
-    x_t = np.random.rand(n_spins) * 2 - 1
+    # x_t = np.random.rand(n_spins) * 2 - 1
     z_t = np.random.rand(n_spins) * 2 - 1
     zz_t = np.random.rand(n_spins - 1) * 2 - 1
 
 
 
-    hamiltonian_t = Hamiltonian(n_spins, beta, z=z_t, x=x_t, zz = zz_t)
+    hamiltonian_t = Hamiltonian(n_spins, beta, z=z_t, zz = zz_t)
     hamiltonian_t.set_density_mat()
     # print('Target density matrix')
     # print(hamiltonian_t.density_mat)
 
     # Create an initial pull of random hamiltonians
     # (we call it "particle" according to Sequential Monte Carlo terminology)
-    g_cloud = Cloud(n_particles, n_spins, beta, fields=["z", 'x'], couplings=['zz'])
+    g_cloud = Cloud(n_particles, n_spins, beta, fields=["z"], couplings=['zz'])
+    MSE = []
+
     for i in range(n_cycles):
         # Measure target hamiltonian
         singles_t, correlators_t = hamiltonian_t.measure(angles)
@@ -50,22 +53,31 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
         hamiltonian_g = g_cloud.weighted_sum()
 
         mse = hamiltonian_difference(hamiltonian_t, hamiltonian_g)
-        print(f"iteration {i}")
+        MSE.append(mse)
+        # print(f"iteration {i}")
         print(f"mse {mse}")
-        # print(f"hamiltonian_g.z {hamiltonian_g.z}")
+        # # print(f"hamiltonian_g.z {hamiltonian_g.z}")
         singles_g, correlators_g = hamiltonian_g.measure(angles)
         print(f"distance {distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t)}")
-        print(f"theta {angles[0, 0] / np.pi}")
-        print(f"phi {angles[0, 1] / np.pi}")
-        print('')
+        # print(f"theta {angles[0, 0] / np.pi}")
+        # print(f"phi {angles[0, 1] / np.pi}")
+        # print('')
 
         # Make a gradient descent to determine new angles
         grad = Gradient(hamiltonian_t, hamiltonian_g, angles)
         angles = grad.gradient_descent(lr=lr, num_iterations=gradient_iterations)
-    print(singles_t)
-    print(singles_g)
+    return MSE, g_cloud
+    # print(f"z_t = {z_t}, zz_t = {zz_t}")
+    # print(f"z_g = {hamiltonian_g.z}, zz_g = {hamiltonian_g.zz}")
 
 if __name__ == '__main__':
-    main_cycle(n_cycles=300, n_particles=500, lr=0.01, gradient_iterations=100)
+    n_cycles = 15
+    MSE, g_cloud = main_cycle(n_cycles=n_cycles, n_particles=1000, lr=0.03, gradient_iterations=300)
+    X = np.linspace(1, n_cycles, n_cycles)
+    plt.plot(X, MSE)
+    plt.show()
+    hamiltonian_g = g_cloud.weighted_sum()
+    # print(f"z_t = {z_t}, zz_t = {zz_t}")
+    print(f"z_g = {hamiltonian_g.z}, zz_g = {hamiltonian_g.zz}")
 
 
