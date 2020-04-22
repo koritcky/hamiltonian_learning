@@ -66,6 +66,7 @@ class Hamiltonian:
         try:
             rho = sp.linalg.expm(-self.beta * H) / Z
         except RuntimeWarning:
+            print('Error!')
             print(f"Z={Z}")
             print(f"Static={static}")
             print(f"H={H}")
@@ -108,6 +109,7 @@ def u_mat(theta, phi):
     u21 = -np.sin(theta / 2)
     u22 = np.cos(theta / 2) * np.exp(- phi * 1j)
 
+
     u = np.array([[u11, u12], [u21, u22]])
 
     return u
@@ -138,7 +140,6 @@ def rotate(rho: np.array, u_mat):
         print(rho.shape)
         print(u_mat.shape)
         raise Warning('Didnt rotate matrix')
-        return rho
 
 
 ## Unused function

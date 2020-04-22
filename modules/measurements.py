@@ -24,11 +24,10 @@ class ReducedMatrixMeasurement:
         for i in range(dim_1):
             B_row = []
             for j in range(dim_1):
-                submat = density_mat[j * dim_2:(j + 1) * dim_2, i * dim_2:(i + 1) * dim_2]
+                submat = density_mat[i * dim_2:(i + 1) * dim_2, j * dim_2:(j + 1) * dim_2]
                 B_row.append(submat)
             B.append(B_row)
         B = np.array(B)
-
         # Create matrices after splitting according to reduced matrix rule
         submat_1 = np.zeros((dim_1, dim_1), dtype='complex128')
         submat_2 = np.zeros((dim_2, dim_2), dtype='complex128')
@@ -42,7 +41,7 @@ class ReducedMatrixMeasurement:
     @staticmethod
     def reduced_matrix(density_mat, left_spin, right_spin):
         """
-        By given a density matrix of general spin system and 2 spins -- adjacent on the same -- return density matrix
+        By given a density matrix of general spin system and 2 spins -- adjacent or the same -- return density matrix
         of subsystem of this 2 spins.
         """
         resulted_system = right_spin - left_spin + 1
@@ -133,6 +132,7 @@ def distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2)
     """Find the distance between 2 matrices according to singles and correlators measurements"""
 
     return ((singles_1 - singles_2) ** 2).mean() + ((correlators_1 - correlators_2) ** 2).mean()
+    # return ((singles_1 - singles_2) ** 2).mean()
 
 
 if __name__ == "__main__":
@@ -146,4 +146,4 @@ if __name__ == "__main__":
     singles_1, correlators_1 = ReducedMatrixMeasurement.reduced_matrix_measurements(rho)
     singles_2, correlators_2 = SamplingMeasurement.sampling_measurements(rho, 10 ** 2)
 
-    print(distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2))
+    # print(distance_by_measurements(singles_1, singles_2, correlators_1, correlators_2))
