@@ -87,7 +87,6 @@ class Cloud:
             mean.append(measurements.distance_by_measurements(singles_g, singles_t, correlators_g, correlators_t))
         sd = np.sqrt(1 / (self.n_particles - 1) * np.sum(np.array(mean) ** 2))
 
-        print(sd)
         for i in range(len(self.particles_list)):
             self.particles_list[i].weight = np.exp(- ((mean[i] / sd) ** 2) * (1 / 2)) / np.sqrt(2 * np.pi * sd)
 

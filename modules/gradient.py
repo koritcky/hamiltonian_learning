@@ -103,22 +103,29 @@ class ProbabilityDerivative:
         self.corr_ZX = corr_ZX
         self.corr_ZY = corr_ZY
 
-        # print(self.corr_ZZ)
 
-    def d_prob(self, pX, pY, tr):
+    def d_prob(self, pX, pY, tr, shift=None):
         """By given probabilities of measurements in Z, X and Y basis
         returns vector of derivatives for each spin of shape (n_spins, 2)"""
 
-        # !! Returns 0 if get 1/2 !!
         theta = self.original_angles[:, 0]  # we need only thetas
+
+        # I'm so sorry for this piece of shit, but it's the most stable sollution
+        if shift == 0:
+            pX = np.concatenate(([0], pX))
+            pY = np.concatenate(([0], pY))
+            tr = np.concatenate(([0], tr))
+        elif shift == -1:
+            pX = np.concatenate((pX, [0]))
+            pY = np.concatenate((pY, [0]))
+            tr = np.concatenate((tr, [0]))
 
         # Actually, this is derivatives of probabilities by d_theta and d_phi
         d_theta = pX - (tr / 2)  # \frac{d_prob}{d_theta}
-        # print(f'd_theta{d_theta}')
         d_phi = (pY - (tr / 2)) * np.sin(theta)  # \frac{d_prob}{d_phi}
-        # print(f'd_phi{d_phi}')
-        # print('')
+
         d_prob = np.array([d_theta, d_phi]).T  # shape (n_spins, 2)
+
         return d_prob
 
     def singles_grad_construct(self):
@@ -150,47 +157,32 @@ class ProbabilityDerivative:
         left_corr_d_prob = np.zeros((4, self.n_spins, 2))  # (states, n_spins, 2angles)
         right_corr_d_prob = np.zeros((4, self.n_spins, 2))  # (states, n_spins, 2angles)
 
-        tail = np.array([0.5])  # we will add it to keep dimensions
         # Responsible for derivative by left spin
         for state in [0, 1]:
             tr = self.corr_ZZ[:, state] + self.corr_ZZ[:, state + 2]
 
-            # print(f'state: {"{0:02b}".format(state)}')
-
             pXZ = self.corr_XZ[:, state]
             pYZ = self.corr_YZ[:, state]
-            print(tr)
-            print(self.corr_ZX[:, state] + self.corr_ZX[:, state + 2])
 
-            # print(f'pYZ{pYZ}')
+            d_prob = self.d_prob(pXZ, pYZ, tr, shift=-1)
 
-            pXZ = np.concatenate((pXZ, tail), axis=0)
-            pYZ = np.concatenate((pYZ, tail), axis=0)
-
-            d_prob = self.d_prob(pXZ, pYZ, tr)
-            left_corr_d_prob[state] += d_prob
-            left_corr_d_prob[state + 2] += -d_prob
-            # print(left_corr_d_prob[state])
+            left_corr_d_prob[state] = d_prob
+            left_corr_d_prob[state + 2] = -d_prob
 
         # Responsible for derivative by right spin
         for state in [0, 2]:
             tr = self.corr_ZZ[:, state] + self.corr_ZZ[:, state + 1]
             pZX = self.corr_ZX[:, state]
             pZY = self.corr_ZY[:, state]
-            # print(pZX)
 
-            pZX = np.concatenate((tail, pZX), axis=0)
-            pZY = np.concatenate((tail, pZY), axis=0)
+            d_prob = self.d_prob(pZX, pZY, tr, shift=0)
 
-            d_prob = self.d_prob(pZX, pZY, tr)
-            right_corr_d_prob[state] += d_prob
-            right_corr_d_prob[state + 1] += -d_prob
-            # print(right_corr_d_prob[state])
+            right_corr_d_prob[state] = d_prob
+            right_corr_d_prob[state + 1] = -d_prob
 
-        # print('')
         left_corr_d_prob = np.swapaxes(left_corr_d_prob, 0, 1)  # so now shape = (n_spins, states, angle)
         right_corr_d_prob = np.swapaxes(right_corr_d_prob, 0, 1)  # so now shape = (n_spins, states, angle)
-        # print(left_corr_d_prob[:, :, 0] + right_corr_d_prob[:, :, 0])
+
         return left_corr_d_prob, right_corr_d_prob
 
 
@@ -206,13 +198,12 @@ class Gradient:
 
     def loss_gradient(self):
         """calculates gradient vector"""
-        loss_grad = 0
         s_loss_grad = 0
         c_loss_grad = 0
         self.prob_der_t.measurements_for_gradient()
         self.prob_der_g.measurements_for_gradient()
 
-        ## Handle with singles:
+        """Handle with singles:"""
         # Construct gradients of shape (n_spins, states, angles)
         singles_grad_t = self.prob_der_t.singles_grad_construct()
         singles_grad_g = self.prob_der_g.singles_grad_construct()
@@ -225,7 +216,7 @@ class Gradient:
         s_loss_grad += np.sum(2 * (singles_prob_t - singles_prob_g) * \
                          (singles_grad_t - singles_grad_g), axis=1)
 
-        ## Handle with correlators
+        """Handle with correlators"""
         tail = np.zeros((1, 4, 1))
 
         # Construct gradients of shape (n_spins, states, angles)
@@ -235,7 +226,6 @@ class Gradient:
         # We should add dimension , because corrs have shapes (n_spins, states)
         corr_prob_t = np.expand_dims(self.prob_der_t.corr_ZZ, axis=2)
         corr_prob_g = np.expand_dims(self.prob_der_g.corr_ZZ, axis=2)  # now (n_spins, states, 2angles)
-
 
         # For left spins in correlators
 
@@ -254,10 +244,8 @@ class Gradient:
         c_loss_grad += \
             np.sum(2 * (right_corr_prob_t - right_corr_prob_g) * (right_corr_grad_t - right_corr_grad_g), axis=1)
 
-        loss_grad = c_loss_grad + s_loss_grad
-        # print(np.linalg.norm(s_loss_grad) / (np.linalg.norm(s_loss_grad) + np.linalg.norm(c_loss_grad)))
-        self.loss_grad = loss_grad
-        # print(s_loss_grad)
+        self.loss_grad = c_loss_grad + s_loss_grad
+
         return self.loss_grad
 
     def gradient_descent(self, lr=0.01, num_iterations=10):

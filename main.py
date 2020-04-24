@@ -74,7 +74,7 @@ def main_cycle(n_cycles, n_particles, lr, gradient_iterations):
 
 if __name__ == '__main__':
     n_cycles = 20
-    MSE, g_cloud = main_cycle(n_cycles=n_cycles, n_particles=1000, lr=0.03, gradient_iterations=300)
+    MSE, g_cloud = main_cycle(n_cycles=n_cycles, n_particles=300, lr=0.3, gradient_iterations=150)
     X = np.linspace(1, n_cycles, n_cycles)
     plt.plot(X, MSE)
     plt.show()
