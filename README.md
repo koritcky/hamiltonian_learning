@@ -1,2 +1,2 @@
-# hamiltonian_learning
-Hamiltonian learning using max likelihood and GAN inspired methods
+![algoritm_scheme](algorithm_scheme.png)
+
